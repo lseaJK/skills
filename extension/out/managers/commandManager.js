@@ -1,38 +1,69 @@
-import * as vscode from 'vscode';
-import { SkillsArchitectureExtension } from '../skillsArchitectureExtension';
-
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CommandManager = void 0;
+const vscode = __importStar(require("vscode"));
 /**
  * Manages all commands for the Skills Architecture extension
  */
-export class CommandManager {
-    private commands: Map<string, vscode.Disposable> = new Map();
-    private extension: SkillsArchitectureExtension | null = null;
-
-    constructor(private context: vscode.ExtensionContext) {}
-
+class CommandManager {
+    constructor(context) {
+        this.context = context;
+        this.commands = new Map();
+        this.extension = null;
+    }
     /**
      * Initialize the command manager
      */
-    async initialize(extension: SkillsArchitectureExtension): Promise<void> {
+    async initialize(extension) {
         this.extension = extension;
         this.registerCommands();
         console.log('Command manager initialized with', this.commands.size, 'commands');
     }
-
     /**
      * Register all extension commands
      */
-    private registerCommands(): void {
+    registerCommands() {
         // Main panel commands
         this.registerCommand('skillsArchitecture.showSkillPanel', this.showSkillPanel.bind(this));
         this.registerCommand('skillsArchitecture.refreshSkills', this.refreshSkills.bind(this));
-
         // Skill management commands
         this.registerCommand('skillsArchitecture.createSkill', this.createSkill.bind(this));
         this.registerCommand('skillsArchitecture.editSkill', this.editSkill.bind(this));
         this.registerCommand('skillsArchitecture.deleteSkill', this.deleteSkill.bind(this));
         this.registerCommand('skillsArchitecture.testSkill', this.testSkill.bind(this));
-
         // Search and filter commands
         this.registerCommand('skillsArchitecture.searchSkills', this.searchSkills.bind(this));
         this.registerCommand('skillsArchitecture.filterByLayer', this.filterByLayer.bind(this));
@@ -40,71 +71,63 @@ export class CommandManager {
         this.registerCommand('skillsArchitecture.clearFilters', this.clearFilters.bind(this));
         this.registerCommand('skillsArchitecture.showSkillDetails', this.showSkillDetails.bind(this));
         this.registerCommand('skillsArchitecture.showSkillStatistics', this.showSkillStatistics.bind(this));
-
         // Import/Export commands
         this.registerCommand('skillsArchitecture.exportSkill', this.exportSkill.bind(this));
         this.registerCommand('skillsArchitecture.importSkill', this.importSkill.bind(this));
-
         // Configuration commands
         this.registerCommand('skillsArchitecture.openSettings', this.openSettings.bind(this));
         this.registerCommand('skillsArchitecture.resetConfiguration', this.resetConfiguration.bind(this));
-
         // Debug commands
         this.registerCommand('skillsArchitecture.toggleDebugMode', this.toggleDebugMode.bind(this));
         this.registerCommand('skillsArchitecture.showLogs', this.showLogs.bind(this));
-
         console.log('Registered commands:', Array.from(this.commands.keys()));
     }
-
     /**
      * Register a single command
      */
-    private registerCommand(commandId: string, callback: (...args: any[]) => any): void {
+    registerCommand(commandId, callback) {
         const disposable = vscode.commands.registerCommand(commandId, callback);
         this.commands.set(commandId, disposable);
         this.context.subscriptions.push(disposable);
     }
-
     /**
      * Show the skills panel
      */
-    private async showSkillPanel(): Promise<void> {
+    async showSkillPanel() {
         try {
             await vscode.commands.executeCommand('workbench.view.explorer');
             await vscode.commands.executeCommand('skillsExplorer.focus');
-            
             this.extension?.getConfigurationManager().debug('Skills panel shown');
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to show skills panel:', error);
             vscode.window.showErrorMessage(`Failed to show skills panel: ${error}`);
         }
     }
-
     /**
      * Refresh the skills tree
      */
-    private async refreshSkills(): Promise<void> {
+    async refreshSkills() {
         try {
             await this.extension?.getSkillsTreeProvider().refresh();
             vscode.window.showInformationMessage('Skills refreshed successfully');
-            
             this.extension?.getConfigurationManager().debug('Skills refreshed');
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to refresh skills:', error);
             vscode.window.showErrorMessage(`Failed to refresh skills: ${error}`);
         }
     }
-
     /**
      * Create a new skill
      */
-    private async createSkill(): Promise<void> {
+    async createSkill() {
         try {
             // Show input box for skill name
             const skillName = await vscode.window.showInputBox({
                 prompt: 'Enter skill name',
                 placeHolder: 'my-awesome-skill',
-                validateInput: (value: string) => {
+                validateInput: (value) => {
                     if (!value || value.trim() === '') {
                         return 'Skill name cannot be empty';
                     }
@@ -114,195 +137,160 @@ export class CommandManager {
                     return null;
                 }
             });
-
             if (!skillName) {
                 return; // User cancelled
             }
-
             // Show quick pick for skill layer
             const layerOptions = [
                 { label: 'Layer 1', description: 'Function calls - Direct atomic operations', value: 1 },
                 { label: 'Layer 2', description: 'Sandbox tools - Command line programs and tools', value: 2 },
                 { label: 'Layer 3', description: 'Wrapper APIs - High-level programming and execution code', value: 3 }
             ];
-
             const selectedLayer = await vscode.window.showQuickPick(layerOptions, {
                 placeHolder: 'Select skill layer',
                 canPickMany: false
             });
-
             if (!selectedLayer) {
                 return; // User cancelled
             }
-
             // Create the skill using the tree provider
             const skill = await this.extension?.getSkillsTreeProvider().createSkill(skillName, selectedLayer.value);
-            
             if (skill) {
                 vscode.window.showInformationMessage(`Skill "${skillName}" created successfully`);
-                
                 // Ask if user wants to edit the skill immediately
                 const editAction = 'Edit Now';
-                const choice = await vscode.window.showInformationMessage(
-                    `Skill "${skillName}" created. Would you like to edit it now?`,
-                    editAction
-                );
-
+                const choice = await vscode.window.showInformationMessage(`Skill "${skillName}" created. Would you like to edit it now?`, editAction);
                 if (choice === editAction) {
                     await this.editSkill(skill.id);
                 }
             }
-
             this.extension?.getConfigurationManager().debug('Skill created:', skillName);
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to create skill:', error);
             vscode.window.showErrorMessage(`Failed to create skill: ${error}`);
         }
     }
-
     /**
      * Edit a skill
      */
-    private async editSkill(skillId?: string): Promise<void> {
+    async editSkill(skillId) {
         try {
             if (!skillId) {
                 // Show skill picker if no ID provided
                 const skills = await this.extension?.getSkillsTreeProvider().getAllSkills() || [];
-                
                 if (skills.length === 0) {
                     vscode.window.showInformationMessage('No skills available to edit. Create a skill first.');
                     return;
                 }
-
                 const skillOptions = skills.map(skill => ({
                     label: skill.name,
                     description: `Layer ${skill.layer} - ${skill.description}`,
                     skillId: skill.id
                 }));
-
                 const selectedSkill = await vscode.window.showQuickPick(skillOptions, {
                     placeHolder: 'Select skill to edit',
                     canPickMany: false
                 });
-
                 if (!selectedSkill) {
                     return; // User cancelled
                 }
-
                 skillId = selectedSkill.skillId;
             }
-
             // Open the skill in the custom editor
-            const skillPath = await this.extension?.getSkillsTreeProvider().getSkillPath(skillId!);
+            const skillPath = await this.extension?.getSkillsTreeProvider().getSkillPath(skillId);
             if (skillPath) {
                 const uri = vscode.Uri.file(skillPath);
                 await vscode.commands.executeCommand('vscode.openWith', uri, 'skillsArchitecture.skillEditor');
             }
-
             this.extension?.getConfigurationManager().debug('Skill editor opened for:', skillId);
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to edit skill:', error);
             vscode.window.showErrorMessage(`Failed to edit skill: ${error}`);
         }
     }
-
     /**
      * Delete a skill
      */
-    private async deleteSkill(skillId?: string): Promise<void> {
+    async deleteSkill(skillId) {
         try {
             if (!skillId) {
                 vscode.window.showErrorMessage('No skill selected for deletion');
                 return;
             }
-
             const skill = await this.extension?.getSkillsTreeProvider().getSkill(skillId);
             if (!skill) {
                 vscode.window.showErrorMessage('Skill not found');
                 return;
             }
-
             // Confirm deletion
             const confirmAction = 'Delete';
-            const choice = await vscode.window.showWarningMessage(
-                `Are you sure you want to delete skill "${skill.name}"? This action cannot be undone.`,
-                { modal: true },
-                confirmAction
-            );
-
+            const choice = await vscode.window.showWarningMessage(`Are you sure you want to delete skill "${skill.name}"? This action cannot be undone.`, { modal: true }, confirmAction);
             if (choice === confirmAction) {
                 await this.extension?.getSkillsTreeProvider().deleteSkill(skillId);
                 vscode.window.showInformationMessage(`Skill "${skill.name}" deleted successfully`);
             }
-
             this.extension?.getConfigurationManager().debug('Skill deleted:', skillId);
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to delete skill:', error);
             vscode.window.showErrorMessage(`Failed to delete skill: ${error}`);
         }
     }
-
     /**
      * Test a skill
      */
-    private async testSkill(skillId?: string): Promise<void> {
+    async testSkill(skillId) {
         try {
             if (!skillId) {
                 vscode.window.showErrorMessage('No skill selected for testing');
                 return;
             }
-
             const skill = await this.extension?.getSkillsTreeProvider().getSkill(skillId);
             if (!skill) {
                 vscode.window.showErrorMessage('Skill not found');
                 return;
             }
-
             // Show progress while testing
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: `Testing skill "${skill.name}"...`,
                 cancellable: false
-            }, async (progress: vscode.Progress<{ increment?: number; message?: string }>) => {
+            }, async (progress) => {
                 progress.report({ increment: 0 });
-
                 const testResult = await this.extension?.getSkillsTreeProvider().testSkill(skillId);
-                
                 progress.report({ increment: 100 });
-
                 if (testResult?.passed) {
                     vscode.window.showInformationMessage(`Skill "${skill.name}" passed all tests`);
-                } else {
+                }
+                else {
                     vscode.window.showWarningMessage(`Skill "${skill.name}" failed some tests`);
                 }
-
                 // Show detailed results in output channel
                 this.showTestResults(skill.name, testResult);
             });
-
             this.extension?.getConfigurationManager().debug('Skill tested:', skillId);
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to test skill:', error);
             vscode.window.showErrorMessage(`Failed to test skill: ${error}`);
         }
     }
-
     /**
      * Export a skill
      */
-    private async exportSkill(skillId?: string): Promise<void> {
+    async exportSkill(skillId) {
         try {
             if (!skillId) {
                 vscode.window.showErrorMessage('No skill selected for export');
                 return;
             }
-
             const skill = await this.extension?.getSkillsTreeProvider().getSkill(skillId);
             if (!skill) {
                 vscode.window.showErrorMessage('Skill not found');
                 return;
             }
-
             // Show save dialog
             const uri = await vscode.window.showSaveDialog({
                 defaultUri: vscode.Uri.file(`${skill.name}.skill.json`),
@@ -311,24 +299,22 @@ export class CommandManager {
                     'All Files': ['*']
                 }
             });
-
             if (uri) {
                 const skillData = JSON.stringify(skill, null, 2);
                 await vscode.workspace.fs.writeFile(uri, Buffer.from(skillData, 'utf8'));
                 vscode.window.showInformationMessage(`Skill "${skill.name}" exported successfully`);
             }
-
             this.extension?.getConfigurationManager().debug('Skill exported:', skillId);
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to export skill:', error);
             vscode.window.showErrorMessage(`Failed to export skill: ${error}`);
         }
     }
-
     /**
      * Import a skill
      */
-    private async importSkill(): Promise<void> {
+    async importSkill() {
         try {
             // Show open dialog
             const uris = await vscode.window.showOpenDialog({
@@ -338,99 +324,84 @@ export class CommandManager {
                     'All Files': ['*']
                 }
             });
-
             if (uris && uris.length > 0) {
                 const uri = uris[0];
                 const skillData = await vscode.workspace.fs.readFile(uri);
                 const skillJson = Buffer.from(skillData).toString('utf8');
-                
                 const skill = await this.extension?.getSkillsTreeProvider().importSkill(skillJson);
-                
                 if (skill) {
                     vscode.window.showInformationMessage(`Skill "${skill.name}" imported successfully`);
                 }
             }
-
             this.extension?.getConfigurationManager().debug('Skill imported');
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to import skill:', error);
             vscode.window.showErrorMessage(`Failed to import skill: ${error}`);
         }
     }
-
     /**
      * Open extension settings
      */
-    private async openSettings(): Promise<void> {
+    async openSettings() {
         await vscode.commands.executeCommand('workbench.action.openSettings', 'skillsArchitecture');
     }
-
     /**
      * Reset configuration to defaults
      */
-    private async resetConfiguration(): Promise<void> {
+    async resetConfiguration() {
         const confirmAction = 'Reset';
-        const choice = await vscode.window.showWarningMessage(
-            'Are you sure you want to reset all Skills Architecture settings to defaults?',
-            { modal: true },
-            confirmAction
-        );
-
+        const choice = await vscode.window.showWarningMessage('Are you sure you want to reset all Skills Architecture settings to defaults?', { modal: true }, confirmAction);
         if (choice === confirmAction) {
             await this.extension?.getConfigurationManager().resetToDefaults();
         }
     }
-
     /**
      * Toggle debug mode
      */
-    private async toggleDebugMode(): Promise<void> {
+    async toggleDebugMode() {
         const configManager = this.extension?.getConfigurationManager();
         if (configManager) {
             const currentMode = configManager.isDebugMode();
             await configManager.update('debugMode', !currentMode);
-            
             const status = !currentMode ? 'enabled' : 'disabled';
             vscode.window.showInformationMessage(`Debug mode ${status}`);
         }
     }
-
     /**
      * Search skills
      */
-    private async searchSkills(): Promise<void> {
+    async searchSkills() {
         try {
             const searchTerm = await vscode.window.showInputBox({
                 prompt: 'Enter search term',
                 placeHolder: 'Search by name, description, or tags...',
                 value: ''
             });
-
             if (searchTerm !== undefined) {
                 this.extension?.getSkillsTreeProvider().setSearchFilter(searchTerm);
-                
                 if (searchTerm) {
                     vscode.window.showInformationMessage(`Searching for: "${searchTerm}"`);
-                } else {
+                }
+                else {
                     vscode.window.showInformationMessage('Search cleared');
                 }
             }
-
             this.extension?.getConfigurationManager().debug('Skills search applied:', searchTerm);
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to search skills:', error);
             vscode.window.showErrorMessage(`Failed to search skills: ${error}`);
         }
     }
-
     /**
      * Filter skills by layer
      */
-    private async filterByLayer(): Promise<void> {
+    async filterByLayer() {
         try {
             const treeProvider = this.extension?.getSkillsTreeProvider();
-            if (!treeProvider) return;
-
+            if (!treeProvider)
+                return;
             const layers = treeProvider.getAvailableLayers();
             const layerOptions = [
                 { label: 'All Layers', description: 'Show skills from all layers', value: undefined },
@@ -440,37 +411,34 @@ export class CommandManager {
                     value: layer.layer
                 }))
             ];
-
             const selectedLayer = await vscode.window.showQuickPick(layerOptions, {
                 placeHolder: 'Select layer to filter by',
                 canPickMany: false
             });
-
             if (selectedLayer) {
                 treeProvider.setLayerFilter(selectedLayer.value);
-                
                 if (selectedLayer.value) {
                     vscode.window.showInformationMessage(`Filtered by Layer ${selectedLayer.value}`);
-                } else {
+                }
+                else {
                     vscode.window.showInformationMessage('Layer filter cleared');
                 }
             }
-
             this.extension?.getConfigurationManager().debug('Layer filter applied:', selectedLayer?.value);
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to filter by layer:', error);
             vscode.window.showErrorMessage(`Failed to filter by layer: ${error}`);
         }
     }
-
     /**
      * Filter skills by category
      */
-    private async filterByCategory(): Promise<void> {
+    async filterByCategory() {
         try {
             const treeProvider = this.extension?.getSkillsTreeProvider();
-            if (!treeProvider) return;
-
+            if (!treeProvider)
+                return;
             const categories = treeProvider.getAvailableCategories();
             const categoryOptions = [
                 { label: 'All Categories', description: 'Show skills from all categories', value: undefined },
@@ -480,146 +448,118 @@ export class CommandManager {
                     value: category
                 }))
             ];
-
             const selectedCategory = await vscode.window.showQuickPick(categoryOptions, {
                 placeHolder: 'Select category to filter by',
                 canPickMany: false
             });
-
             if (selectedCategory) {
                 treeProvider.setCategoryFilter(selectedCategory.value);
-                
                 if (selectedCategory.value) {
                     vscode.window.showInformationMessage(`Filtered by category: ${selectedCategory.value}`);
-                } else {
+                }
+                else {
                     vscode.window.showInformationMessage('Category filter cleared');
                 }
             }
-
             this.extension?.getConfigurationManager().debug('Category filter applied:', selectedCategory?.value);
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to filter by category:', error);
             vscode.window.showErrorMessage(`Failed to filter by category: ${error}`);
         }
     }
-
     /**
      * Clear all filters
      */
-    private async clearFilters(): Promise<void> {
+    async clearFilters() {
         try {
             this.extension?.getSkillsTreeProvider().clearFilters();
             vscode.window.showInformationMessage('All filters cleared');
-            
             this.extension?.getConfigurationManager().debug('All filters cleared');
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to clear filters:', error);
             vscode.window.showErrorMessage(`Failed to clear filters: ${error}`);
         }
     }
-
     /**
      * Show detailed skill information
      */
-    private async showSkillDetails(skillId?: string): Promise<void> {
+    async showSkillDetails(skillId) {
         try {
             if (!skillId) {
                 // Show skill picker if no ID provided
                 const skills = await this.extension?.getSkillsTreeProvider().getAllSkills() || [];
-                
                 if (skills.length === 0) {
                     vscode.window.showInformationMessage('No skills available.');
                     return;
                 }
-
                 const skillOptions = skills.map(skill => ({
                     label: skill.name,
                     description: `Layer ${skill.layer} - ${skill.description}`,
                     skillId: skill.id
                 }));
-
                 const selectedSkill = await vscode.window.showQuickPick(skillOptions, {
                     placeHolder: 'Select skill to view details',
                     canPickMany: false
                 });
-
                 if (!selectedSkill) {
                     return; // User cancelled
                 }
-
                 skillId = selectedSkill.skillId;
             }
-
             const treeProvider = this.extension?.getSkillsTreeProvider();
-            if (!treeProvider) return;
-
-            const skillDetails = await treeProvider.getSkillDetails(skillId!);
-            
+            if (!treeProvider)
+                return;
+            const skillDetails = await treeProvider.getSkillDetails(skillId);
             // Create and show webview panel with skill details
-            const panel = vscode.window.createWebviewPanel(
-                'skillDetails',
-                `Skill Details: ${skillDetails.name}`,
-                vscode.ViewColumn.One,
-                {
-                    enableScripts: true,
-                    retainContextWhenHidden: true
-                }
-            );
-
+            const panel = vscode.window.createWebviewPanel('skillDetails', `Skill Details: ${skillDetails.name}`, vscode.ViewColumn.One, {
+                enableScripts: true,
+                retainContextWhenHidden: true
+            });
             panel.webview.html = this.getSkillDetailsHtml(skillDetails);
-
             this.extension?.getConfigurationManager().debug('Skill details shown for:', skillId);
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to show skill details:', error);
             vscode.window.showErrorMessage(`Failed to show skill details: ${error}`);
         }
     }
-
     /**
      * Show skill statistics
      */
-    private async showSkillStatistics(): Promise<void> {
+    async showSkillStatistics() {
         try {
             const treeProvider = this.extension?.getSkillsTreeProvider();
-            if (!treeProvider) return;
-
+            if (!treeProvider)
+                return;
             const stats = treeProvider.getSkillStatistics();
-            
             // Create and show webview panel with statistics
-            const panel = vscode.window.createWebviewPanel(
-                'skillStatistics',
-                'Skill Statistics',
-                vscode.ViewColumn.One,
-                {
-                    enableScripts: true,
-                    retainContextWhenHidden: true
-                }
-            );
-
+            const panel = vscode.window.createWebviewPanel('skillStatistics', 'Skill Statistics', vscode.ViewColumn.One, {
+                enableScripts: true,
+                retainContextWhenHidden: true
+            });
             panel.webview.html = this.getSkillStatisticsHtml(stats);
-
             this.extension?.getConfigurationManager().debug('Skill statistics shown');
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to show skill statistics:', error);
             vscode.window.showErrorMessage(`Failed to show skill statistics: ${error}`);
         }
     }
-
     /**
      * Show test results in output channel
      */
-    private showTestResults(skillName: string, testResult: any): void {
+    showTestResults(skillName, testResult) {
         const outputChannel = vscode.window.createOutputChannel(`Skills Architecture - Test Results`);
         outputChannel.clear();
         outputChannel.show();
-        
         outputChannel.appendLine(`Test Results for Skill: ${skillName}`);
         outputChannel.appendLine('='.repeat(50));
         outputChannel.appendLine(`Overall Result: ${testResult?.passed ? 'PASSED' : 'FAILED'}`);
         outputChannel.appendLine('');
-        
         if (testResult?.results) {
-            testResult.results.forEach((result: any, index: number) => {
+            testResult.results.forEach((result, index) => {
                 outputChannel.appendLine(`Test ${index + 1}: ${result.name}`);
                 outputChannel.appendLine(`  Status: ${result.passed ? 'PASSED' : 'FAILED'}`);
                 outputChannel.appendLine(`  Duration: ${result.duration}ms`);
@@ -627,7 +567,6 @@ export class CommandManager {
                 outputChannel.appendLine('');
             });
         }
-        
         if (testResult?.coverage) {
             outputChannel.appendLine('Coverage:');
             outputChannel.appendLine(`  Lines: ${testResult.coverage.lines}%`);
@@ -636,11 +575,10 @@ export class CommandManager {
             outputChannel.appendLine(`  Statements: ${testResult.coverage.statements}%`);
         }
     }
-
     /**
      * Show extension logs
      */
-    private showLogs(): void {
+    showLogs() {
         // Create or show output channel
         const outputChannel = vscode.window.createOutputChannel('Skills Architecture');
         outputChannel.show();
@@ -649,23 +587,19 @@ export class CommandManager {
         outputChannel.appendLine(`Extension activated at: ${new Date().toISOString()}`);
         outputChannel.appendLine(`Configuration: ${JSON.stringify(this.extension?.getConfigurationManager().getConfiguration(), null, 2)}`);
     }
-
     /**
      * Generate HTML for skill details view
      */
-    private getSkillDetailsHtml(skill: any): string {
-        const validationStatus = skill.validation.valid ? 
-            '<span style="color: green;">✓ Valid</span>' : 
+    getSkillDetailsHtml(skill) {
+        const validationStatus = skill.validation.valid ?
+            '<span style="color: green;">✓ Valid</span>' :
             '<span style="color: red;">✗ Invalid</span>';
-
         const dependentSkillsList = skill.dependentSkills.length > 0 ?
-            skill.dependentSkills.map((dep: any) => `<li>${dep.name} (${dep.id})</li>`).join('') :
+            skill.dependentSkills.map((dep) => `<li>${dep.name} (${dep.id})</li>`).join('') :
             '<li>No dependent skills</li>';
-
         const tagsList = skill.metadata?.tags?.length > 0 ?
-            skill.metadata.tags.map((tag: string) => `<span class="tag">${tag}</span>`).join('') :
+            skill.metadata.tags.map((tag) => `<span class="tag">${tag}</span>`).join('') :
             '<span class="tag">No tags</span>';
-
         return `
             <!DOCTYPE html>
             <html>
@@ -738,7 +672,7 @@ export class CommandManager {
                         <div class="validation-errors">
                             <h4>Errors:</h4>
                             <ul>
-                                ${skill.validation.errors.map((error: any) => `<li>${error.message}</li>`).join('')}
+                                ${skill.validation.errors.map((error) => `<li>${error.message}</li>`).join('')}
                             </ul>
                         </div>
                     ` : ''}
@@ -746,7 +680,7 @@ export class CommandManager {
                         <div class="validation-warnings">
                             <h4>Warnings:</h4>
                             <ul>
-                                ${skill.validation.warnings.map((warning: any) => `<li>${warning.message}</li>`).join('')}
+                                ${skill.validation.warnings.map((warning) => `<li>${warning.message}</li>`).join('')}
                             </ul>
                         </div>
                     ` : ''}
@@ -756,7 +690,7 @@ export class CommandManager {
                     <h3>Dependencies</h3>
                     ${skill.dependencies.length > 0 ? `
                         <ul>
-                            ${skill.dependencies.map((dep: any) => `<li>${dep.id} (${dep.type}${dep.optional ? ', optional' : ''})</li>`).join('')}
+                            ${skill.dependencies.map((dep) => `<li>${dep.id} (${dep.type}${dep.optional ? ', optional' : ''})</li>`).join('')}
                         </ul>
                     ` : '<p>No dependencies</p>'}
                 </div>
@@ -778,7 +712,7 @@ export class CommandManager {
                     <h3>Extension Points</h3>
                     ${skill.extensionPoints.length > 0 ? `
                         <ul>
-                            ${skill.extensionPoints.map((ext: any) => `<li>${ext.name}: ${ext.description}</li>`).join('')}
+                            ${skill.extensionPoints.map((ext) => `<li>${ext.name}: ${ext.description}</li>`).join('')}
                         </ul>
                     ` : '<p>No extension points defined</p>'}
                 </div>
@@ -786,28 +720,24 @@ export class CommandManager {
             </html>
         `;
     }
-
     /**
      * Generate HTML for skill statistics view
      */
-    private getSkillStatisticsHtml(stats: any): string {
+    getSkillStatisticsHtml(stats) {
         const layerChartData = Object.entries(stats.byLayer)
-            .map(([layer, count]) => `<div class="bar-item"><span class="bar-label">Layer ${layer}</span><div class="bar" style="width: ${(count as number / stats.total) * 100}%"></div><span class="bar-value">${count}</span></div>`)
+            .map(([layer, count]) => `<div class="bar-item"><span class="bar-label">Layer ${layer}</span><div class="bar" style="width: ${(count / stats.total) * 100}%"></div><span class="bar-value">${count}</span></div>`)
             .join('');
-
         const categoryChartData = Object.entries(stats.byCategory)
-            .map(([category, count]) => `<div class="bar-item"><span class="bar-label">${category}</span><div class="bar" style="width: ${(count as number / stats.total) * 100}%"></div><span class="bar-value">${count}</span></div>`)
+            .map(([category, count]) => `<div class="bar-item"><span class="bar-label">${category}</span><div class="bar" style="width: ${(count / stats.total) * 100}%"></div><span class="bar-value">${count}</span></div>`)
             .join('');
-
         const recentSkillsList = stats.recentlyModified.length > 0 ?
-            stats.recentlyModified.map((skill: any) => `
+            stats.recentlyModified.map((skill) => `
                 <li>
                     <strong>${skill.name}</strong> (Layer ${skill.layer})<br>
                     <small>Updated: ${skill.metadata?.updated ? new Date(skill.metadata.updated).toLocaleString() : 'Unknown'}</small>
                 </li>
             `).join('') :
             '<li>No recently modified skills</li>';
-
         return `
             <!DOCTYPE html>
             <html>
@@ -901,33 +831,31 @@ export class CommandManager {
             </html>
         `;
     }
-
     /**
      * Execute a command by ID
      */
-    async executeCommand(commandId: string, ...args: any[]): Promise<any> {
+    async executeCommand(commandId, ...args) {
         return vscode.commands.executeCommand(commandId, ...args);
     }
-
     /**
      * Check if a command is registered
      */
-    hasCommand(commandId: string): boolean {
+    hasCommand(commandId) {
         return this.commands.has(commandId);
     }
-
     /**
      * Get all registered command IDs
      */
-    getRegisteredCommands(): string[] {
+    getRegisteredCommands() {
         return Array.from(this.commands.keys());
     }
-
     /**
      * Dispose of all commands
      */
-    dispose(): void {
+    dispose() {
         this.commands.forEach(disposable => disposable.dispose());
         this.commands.clear();
     }
 }
+exports.CommandManager = CommandManager;
+//# sourceMappingURL=commandManager.js.map

@@ -1,104 +1,116 @@
-import * as vscode from 'vscode';
-import { SkillsArchitectureExtension } from '../skillsArchitectureExtension';
-
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.EventManager = exports.SkillsArchitectureEvent = void 0;
+const vscode = __importStar(require("vscode"));
 /**
  * Event types for the Skills Architecture extension
  */
-export enum SkillsArchitectureEvent {
-    SKILL_CREATED = 'skillCreated',
-    SKILL_UPDATED = 'skillUpdated',
-    SKILL_DELETED = 'skillDeleted',
-    SKILL_TESTED = 'skillTested',
-    CONFIGURATION_CHANGED = 'configurationChanged',
-    WORKSPACE_CHANGED = 'workspaceChanged',
-    TREE_SELECTION_CHANGED = 'treeSelectionChanged',
-    TREE_VISIBILITY_CHANGED = 'treeVisibilityChanged'
-}
-
-/**
- * Event data interface
- */
-export interface EventData {
-    type: SkillsArchitectureEvent;
-    timestamp: Date;
-    data?: any;
-}
-
-/**
- * Event listener function type
- */
-export type EventListener = (event: EventData) => void | Promise<void>;
-
+var SkillsArchitectureEvent;
+(function (SkillsArchitectureEvent) {
+    SkillsArchitectureEvent["SKILL_CREATED"] = "skillCreated";
+    SkillsArchitectureEvent["SKILL_UPDATED"] = "skillUpdated";
+    SkillsArchitectureEvent["SKILL_DELETED"] = "skillDeleted";
+    SkillsArchitectureEvent["SKILL_TESTED"] = "skillTested";
+    SkillsArchitectureEvent["CONFIGURATION_CHANGED"] = "configurationChanged";
+    SkillsArchitectureEvent["WORKSPACE_CHANGED"] = "workspaceChanged";
+    SkillsArchitectureEvent["TREE_SELECTION_CHANGED"] = "treeSelectionChanged";
+    SkillsArchitectureEvent["TREE_VISIBILITY_CHANGED"] = "treeVisibilityChanged";
+})(SkillsArchitectureEvent || (exports.SkillsArchitectureEvent = SkillsArchitectureEvent = {}));
 /**
  * Manages events and notifications for the Skills Architecture extension
  */
-export class EventManager {
-    private listeners: Map<SkillsArchitectureEvent, EventListener[]> = new Map();
-    private extension: SkillsArchitectureExtension | null = null;
-    private eventHistory: EventData[] = [];
-    private maxHistorySize = 100;
-
-    constructor(private context: vscode.ExtensionContext) {}
-
+class EventManager {
+    constructor(context) {
+        this.context = context;
+        this.listeners = new Map();
+        this.extension = null;
+        this.eventHistory = [];
+        this.maxHistorySize = 100;
+    }
     /**
      * Initialize the event manager
      */
-    async initialize(extension: SkillsArchitectureExtension): Promise<void> {
+    async initialize(extension) {
         this.extension = extension;
         this.setupDefaultListeners();
         console.log('Event manager initialized');
     }
-
     /**
      * Setup default event listeners
      */
-    private setupDefaultListeners(): void {
+    setupDefaultListeners() {
         // Listen for skill events to update the tree view
         this.addEventListener(SkillsArchitectureEvent.SKILL_CREATED, async (event) => {
             await this.extension?.getSkillsTreeProvider().refresh();
             this.extension?.getConfigurationManager().debug('Tree refreshed after skill creation');
         });
-
         this.addEventListener(SkillsArchitectureEvent.SKILL_UPDATED, async (event) => {
             await this.extension?.getSkillsTreeProvider().refresh();
             this.extension?.getConfigurationManager().debug('Tree refreshed after skill update');
         });
-
         this.addEventListener(SkillsArchitectureEvent.SKILL_DELETED, async (event) => {
             await this.extension?.getSkillsTreeProvider().refresh();
             this.extension?.getConfigurationManager().debug('Tree refreshed after skill deletion');
         });
-
         // Listen for configuration changes
         this.addEventListener(SkillsArchitectureEvent.CONFIGURATION_CHANGED, async (event) => {
             this.extension?.getConfigurationManager().debug('Configuration changed event handled');
         });
-
         // Listen for workspace changes
         this.addEventListener(SkillsArchitectureEvent.WORKSPACE_CHANGED, async (event) => {
             await this.extension?.getSkillsTreeProvider().refresh();
             this.extension?.getConfigurationManager().debug('Tree refreshed after workspace change');
         });
     }
-
     /**
      * Add an event listener
      */
-    addEventListener(eventType: SkillsArchitectureEvent, listener: EventListener): vscode.Disposable {
+    addEventListener(eventType, listener) {
         const listeners = this.listeners.get(eventType) || [];
         listeners.push(listener);
         this.listeners.set(eventType, listeners);
-
         // Return disposable to remove the listener
         return new vscode.Disposable(() => {
             this.removeEventListener(eventType, listener);
         });
     }
-
     /**
      * Remove an event listener
      */
-    removeEventListener(eventType: SkillsArchitectureEvent, listener: EventListener): void {
+    removeEventListener(eventType, listener) {
         const listeners = this.listeners.get(eventType) || [];
         const index = listeners.indexOf(listener);
         if (index > -1) {
@@ -106,161 +118,136 @@ export class EventManager {
             this.listeners.set(eventType, listeners);
         }
     }
-
     /**
      * Emit an event
      */
-    async emitEvent(eventType: SkillsArchitectureEvent, data?: any): Promise<void> {
-        const event: EventData = {
+    async emitEvent(eventType, data) {
+        const event = {
             type: eventType,
             timestamp: new Date(),
             data
         };
-
         // Add to history
         this.addToHistory(event);
-
         // Notify listeners
         const listeners = this.listeners.get(eventType) || [];
         const promises = listeners.map(listener => {
             try {
                 return Promise.resolve(listener(event));
-            } catch (error) {
+            }
+            catch (error) {
                 console.error(`Error in event listener for ${eventType}:`, error);
                 return Promise.resolve();
             }
         });
-
         await Promise.all(promises);
-
         this.extension?.getConfigurationManager().debug('Event emitted:', eventType, data);
     }
-
     /**
      * Handle tree selection change
      */
-    handleTreeSelectionChange(event: vscode.TreeViewSelectionChangeEvent<any>): void {
+    handleTreeSelectionChange(event) {
         this.emitEvent(SkillsArchitectureEvent.TREE_SELECTION_CHANGED, {
             selection: event.selection
         });
     }
-
     /**
      * Handle tree visibility change
      */
-    handleTreeVisibilityChange(event: vscode.TreeViewVisibilityChangeEvent): void {
+    handleTreeVisibilityChange(event) {
         this.emitEvent(SkillsArchitectureEvent.TREE_VISIBILITY_CHANGED, {
             visible: event.visible
         });
     }
-
     /**
      * Handle workspace folders change
      */
-    handleWorkspaceFoldersChange(event: vscode.WorkspaceFoldersChangeEvent): void {
+    handleWorkspaceFoldersChange(event) {
         this.emitEvent(SkillsArchitectureEvent.WORKSPACE_CHANGED, {
             added: event.added,
             removed: event.removed
         });
     }
-
     /**
      * Handle skill file created
      */
-    handleSkillFileCreated(uri: vscode.Uri): void {
+    handleSkillFileCreated(uri) {
         this.emitEvent(SkillsArchitectureEvent.SKILL_CREATED, {
             uri: uri.toString(),
             path: uri.fsPath
         });
     }
-
     /**
      * Handle skill file changed
      */
-    handleSkillFileChanged(uri: vscode.Uri): void {
+    handleSkillFileChanged(uri) {
         this.emitEvent(SkillsArchitectureEvent.SKILL_UPDATED, {
             uri: uri.toString(),
             path: uri.fsPath
         });
     }
-
     /**
      * Handle skill file deleted
      */
-    handleSkillFileDeleted(uri: vscode.Uri): void {
+    handleSkillFileDeleted(uri) {
         this.emitEvent(SkillsArchitectureEvent.SKILL_DELETED, {
             uri: uri.toString(),
             path: uri.fsPath
         });
     }
-
     /**
      * Handle configuration change
      */
-    handleConfigurationChange(event: vscode.ConfigurationChangeEvent): void {
+    handleConfigurationChange(event) {
         this.emitEvent(SkillsArchitectureEvent.CONFIGURATION_CHANGED, {
             affectedSections: ['skillsArchitecture']
         });
     }
-
     /**
      * Add event to history
      */
-    private addToHistory(event: EventData): void {
+    addToHistory(event) {
         this.eventHistory.push(event);
-        
         // Maintain history size limit
         if (this.eventHistory.length > this.maxHistorySize) {
             this.eventHistory = this.eventHistory.slice(-this.maxHistorySize);
         }
     }
-
     /**
      * Get event history
      */
-    getEventHistory(eventType?: SkillsArchitectureEvent, limit?: number): EventData[] {
+    getEventHistory(eventType, limit) {
         let history = this.eventHistory;
-        
         if (eventType) {
             history = history.filter(event => event.type === eventType);
         }
-        
         if (limit) {
             history = history.slice(-limit);
         }
-        
         return [...history]; // Return copy
     }
-
     /**
      * Clear event history
      */
-    clearEventHistory(): void {
+    clearEventHistory() {
         this.eventHistory = [];
     }
-
     /**
      * Get listener count for an event type
      */
-    getListenerCount(eventType: SkillsArchitectureEvent): number {
+    getListenerCount(eventType) {
         return this.listeners.get(eventType)?.length || 0;
     }
-
     /**
      * Get all registered event types
      */
-    getRegisteredEventTypes(): SkillsArchitectureEvent[] {
+    getRegisteredEventTypes() {
         return Array.from(this.listeners.keys());
     }
-
     /**
      * Show notification to user
      */
-    showNotification(
-        message: string, 
-        type: 'info' | 'warning' | 'error' = 'info',
-        actions?: string[]
-    ): Thenable<string | undefined> {
+    showNotification(message, type = 'info', actions) {
         switch (type) {
             case 'warning':
                 return vscode.window.showWarningMessage(message, ...(actions || []));
@@ -270,54 +257,45 @@ export class EventManager {
                 return vscode.window.showInformationMessage(message, ...(actions || []));
         }
     }
-
     /**
      * Show progress notification
      */
-    async showProgress<T>(
-        title: string,
-        task: (progress: vscode.Progress<{ message?: string; increment?: number }>) => Promise<T>,
-        cancellable: boolean = false
-    ): Promise<T> {
+    async showProgress(title, task, cancellable = false) {
         return vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
             title,
             cancellable
         }, task);
     }
-
     /**
      * Show status bar message
      */
-    showStatusBarMessage(message: string, timeout?: number): vscode.Disposable {
+    showStatusBarMessage(message, timeout) {
         if (timeout !== undefined) {
             return vscode.window.setStatusBarMessage(message, timeout);
-        } else {
+        }
+        else {
             return vscode.window.setStatusBarMessage(message);
         }
     }
-
     /**
      * Create and show output channel
      */
-    createOutputChannel(name: string): vscode.OutputChannel {
+    createOutputChannel(name) {
         return vscode.window.createOutputChannel(name);
     }
-
     /**
      * Dispose of all event listeners
      */
-    dispose(): void {
+    dispose() {
         this.listeners.clear();
         this.eventHistory = [];
     }
-
     /**
      * Debug method to log all events
      */
-    enableEventLogging(): vscode.Disposable {
-        const disposables: vscode.Disposable[] = [];
-
+    enableEventLogging() {
+        const disposables = [];
         // Add listeners for all event types
         Object.values(SkillsArchitectureEvent).forEach(eventType => {
             const disposable = this.addEventListener(eventType, (event) => {
@@ -325,22 +303,20 @@ export class EventManager {
             });
             disposables.push(disposable);
         });
-
         return new vscode.Disposable(() => {
             disposables.forEach(d => d.dispose());
         });
     }
-
     /**
      * Get event statistics
      */
-    getEventStatistics(): { [key in SkillsArchitectureEvent]?: number } {
-        const stats: { [key in SkillsArchitectureEvent]?: number } = {};
-        
+    getEventStatistics() {
+        const stats = {};
         this.eventHistory.forEach(event => {
             stats[event.type] = (stats[event.type] || 0) + 1;
         });
-        
         return stats;
     }
 }
+exports.EventManager = EventManager;
+//# sourceMappingURL=eventManager.js.map

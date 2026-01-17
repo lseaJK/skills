@@ -71,6 +71,42 @@
         "title": "Import Skill",
         "category": "Skills Architecture",
         "icon": "$(import)"
+      },
+      {
+        "command": "skillsArchitecture.searchSkills",
+        "title": "Search Skills",
+        "category": "Skills Architecture",
+        "icon": "$(search)"
+      },
+      {
+        "command": "skillsArchitecture.filterByLayer",
+        "title": "Filter by Layer",
+        "category": "Skills Architecture",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "skillsArchitecture.filterByCategory",
+        "title": "Filter by Category",
+        "category": "Skills Architecture",
+        "icon": "$(tag)"
+      },
+      {
+        "command": "skillsArchitecture.clearFilters",
+        "title": "Clear Filters",
+        "category": "Skills Architecture",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "skillsArchitecture.showSkillDetails",
+        "title": "Show Skill Details",
+        "category": "Skills Architecture",
+        "icon": "$(info)"
+      },
+      {
+        "command": "skillsArchitecture.showSkillStatistics",
+        "title": "Show Statistics",
+        "category": "Skills Architecture",
+        "icon": "$(graph)"
       }
     ],
     "views": {
@@ -96,34 +132,64 @@
         {
           "command": "skillsArchitecture.createSkill",
           "when": "view == skillsExplorer",
-          "group": "navigation"
+          "group": "navigation@1"
         },
         {
           "command": "skillsArchitecture.refreshSkills",
           "when": "view == skillsExplorer",
-          "group": "navigation"
+          "group": "navigation@2"
+        },
+        {
+          "command": "skillsArchitecture.searchSkills",
+          "when": "view == skillsExplorer",
+          "group": "navigation@3"
+        },
+        {
+          "command": "skillsArchitecture.filterByLayer",
+          "when": "view == skillsExplorer",
+          "group": "filter@1"
+        },
+        {
+          "command": "skillsArchitecture.filterByCategory",
+          "when": "view == skillsExplorer",
+          "group": "filter@2"
+        },
+        {
+          "command": "skillsArchitecture.clearFilters",
+          "when": "view == skillsExplorer",
+          "group": "filter@3"
+        },
+        {
+          "command": "skillsArchitecture.showSkillStatistics",
+          "when": "view == skillsExplorer",
+          "group": "info@1"
         }
       ],
       "view/item/context": [
         {
           "command": "skillsArchitecture.editSkill",
           "when": "view == skillsExplorer && viewItem == skill",
-          "group": "inline"
+          "group": "inline@1"
         },
         {
           "command": "skillsArchitecture.testSkill",
           "when": "view == skillsExplorer && viewItem == skill",
-          "group": "inline"
+          "group": "inline@2"
+        },
+        {
+          "command": "skillsArchitecture.showSkillDetails",
+          "when": "view == skillsExplorer && viewItem == skill",
+          "group": "inline@3"
         },
         {
           "command": "skillsArchitecture.deleteSkill",
           "when": "view == skillsExplorer && viewItem == skill",
-          "group": "context"
+          "group": "context@1"
         },
         {
           "command": "skillsArchitecture.exportSkill",
           "when": "view == skillsExplorer && viewItem == skill",
-          "group": "context"
+          "group": "context@2"
         }
       ],
       "commandPalette": [
@@ -141,6 +207,10 @@
         },
         {
           "command": "skillsArchitecture.exportSkill",
+          "when": "false"
+        },
+        {
+          "command": "skillsArchitecture.showSkillDetails",
           "when": "false"
         }
       ]
