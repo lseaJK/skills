@@ -13,6 +13,21 @@ export class InMemorySkillRegistry implements SkillRegistry {
       throw new Error(`Skill validation failed: ${validation.errors.map(e => e.message).join(', ')}`);
     }
 
+    // Check for conflicts (duplicate ID)
+    if (this.skills.has(skill.id)) {
+      throw new Error(`Skill with ID '${skill.id}' already exists. Use update() to modify existing skills.`);
+    }
+
+    // Check for name conflicts within the same layer
+    const existingSkillsInLayer = await this.getByLayer(skill.layer);
+    const nameConflict = existingSkillsInLayer.find(existing => 
+      existing.name.toLowerCase() === skill.name.toLowerCase()
+    );
+    
+    if (nameConflict) {
+      throw new Error(`Skill with name '${skill.name}' already exists in layer ${skill.layer}. Skill names must be unique within each layer.`);
+    }
+
     this.skills.set(skill.id, skill);
   }
 
@@ -93,6 +108,69 @@ export class InMemorySkillRegistry implements SkillRegistry {
         message: 'Invocation specification is required',
         severity: ValidationSeverity.ERROR
       });
+    } else {
+      // Validate invocation spec
+      if (!skill.invocationSpec.inputSchema) {
+        errors.push({
+          code: 'MISSING_INPUT_SCHEMA',
+          message: 'Input schema is required in invocation specification',
+          severity: ValidationSeverity.ERROR
+        });
+      }
+
+      if (!skill.invocationSpec.outputSchema) {
+        errors.push({
+          code: 'MISSING_OUTPUT_SCHEMA',
+          message: 'Output schema is required in invocation specification',
+          severity: ValidationSeverity.ERROR
+        });
+      }
+
+      if (!skill.invocationSpec.executionContext) {
+        errors.push({
+          code: 'MISSING_EXECUTION_CONTEXT',
+          message: 'Execution context is required in invocation specification',
+          severity: ValidationSeverity.ERROR
+        });
+      }
+    }
+
+    // Validate metadata
+    if (!skill.metadata) {
+      errors.push({
+        code: 'MISSING_METADATA',
+        message: 'Skill metadata is required',
+        severity: ValidationSeverity.ERROR
+      });
+    } else {
+      if (!skill.metadata.author) {
+        warnings.push({
+          code: 'MISSING_AUTHOR',
+          message: 'Author information is recommended'
+        });
+      }
+
+      if (!skill.metadata.category) {
+        warnings.push({
+          code: 'MISSING_CATEGORY',
+          message: 'Category information is recommended'
+        });
+      }
+
+      if (!skill.metadata.tags || skill.metadata.tags.length === 0) {
+        warnings.push({
+          code: 'MISSING_TAGS',
+          message: 'Tags are recommended for better discoverability'
+        });
+      }
+    }
+
+    // Validate version format (basic semver check)
+    if (skill.version && !/^\d+\.\d+\.\d+/.test(skill.version)) {
+      warnings.push({
+        code: 'INVALID_VERSION_FORMAT',
+        message: 'Version should follow semantic versioning (e.g., 1.0.0)'
+      });
     }
 
     return {
@@ -136,6 +214,49 @@ export class InMemorySkillRegistry implements SkillRegistry {
       skill.name.toLowerCase().includes(term) ||
       skill.description.toLowerCase().includes(term) ||
       skill.metadata.tags.some(tag => tag.toLowerCase().includes(term))
+    );
+  }
+
+  /**
+   * Check for potential conflicts when registering a skill
+   */
+  async checkConflicts(skill: SkillDefinition): Promise<string[]> {
+    const conflicts: string[] = [];
+
+    // Check for ID conflicts
+    if (this.skills.has(skill.id)) {
+      conflicts.push(`Skill ID '${skill.id}' already exists`);
+    }
+
+    // Check for name conflicts within the same layer
+    const existingSkillsInLayer = await this.getByLayer(skill.layer);
+    const nameConflict = existingSkillsInLayer.find(existing => 
+      existing.name.toLowerCase() === skill.name.toLowerCase()
+    );
+    
+    if (nameConflict) {
+      conflicts.push(`Skill name '${skill.name}' already exists in layer ${skill.layer}`);
+    }
+
+    // Check for dependency conflicts
+    for (const dependency of skill.dependencies) {
+      if (dependency.type === 'skill') {
+        const dependentSkill = this.skills.get(dependency.id);
+        if (!dependentSkill && !dependency.optional) {
+          conflicts.push(`Required skill dependency '${dependency.id}' not found`);
+        }
+      }
+    }
+
+    return conflicts;
+  }
+
+  /**
+   * Get skills that depend on a specific skill
+   */
+  async getDependentSkills(skillId: string): Promise<SkillDefinition[]> {
+    return Array.from(this.skills.values()).filter(skill =>
+      skill.dependencies.some(dep => dep.id === skillId)
     );
   }
 }

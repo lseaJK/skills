@@ -1,5 +1,5 @@
 import { InMemorySkillRegistry } from '../../src/core/skill-registry';
-import { SkillDefinition } from '../../src/types';
+import { SkillDefinition, SkillDependencyType } from '../../src/types';
 import { testUtils } from '../setup';
 
 describe('InMemorySkillRegistry', () => {
@@ -19,6 +19,36 @@ describe('InMemorySkillRegistry', () => {
     it('should throw error for invalid skill', async () => {
       const invalidSkill = { ...mockSkill, id: '' };
       await expect(registry.register(invalidSkill)).rejects.toThrow('Skill validation failed');
+    });
+
+    it('should throw error for duplicate skill ID', async () => {
+      await registry.register(mockSkill);
+      const duplicateSkill = { ...mockSkill };
+      await expect(registry.register(duplicateSkill)).rejects.toThrow('already exists');
+    });
+
+    it('should throw error for duplicate skill name in same layer', async () => {
+      await registry.register(mockSkill);
+      const duplicateNameSkill = { 
+        ...testUtils.createMockSkillDefinition({ 
+          id: 'different-id',
+          name: mockSkill.name,
+          layer: mockSkill.layer
+        })
+      };
+      await expect(registry.register(duplicateNameSkill)).rejects.toThrow('already exists in layer');
+    });
+
+    it('should allow same name in different layers', async () => {
+      await registry.register(mockSkill);
+      const sameNameDifferentLayer = { 
+        ...testUtils.createMockSkillDefinition({ 
+          id: 'different-id',
+          name: mockSkill.name,
+          layer: 2 as any
+        })
+      };
+      await expect(registry.register(sameNameDifferentLayer)).resolves.not.toThrow();
     });
   });
 
@@ -102,6 +132,80 @@ describe('InMemorySkillRegistry', () => {
       const layer2Skills = await registry.getByLayer(2);
       expect(layer2Skills).toHaveLength(1);
       expect(layer2Skills[0].layer).toBe(2);
+    });
+  });
+
+  describe('checkConflicts', () => {
+    beforeEach(async () => {
+      await registry.register(mockSkill);
+    });
+
+    it('should detect ID conflicts', async () => {
+      const duplicateSkill = { ...mockSkill };
+      const conflicts = await registry.checkConflicts(duplicateSkill);
+      expect(conflicts).toContain(`Skill ID '${mockSkill.id}' already exists`);
+    });
+
+    it('should detect name conflicts in same layer', async () => {
+      const sameNameSkill = testUtils.createMockSkillDefinition({
+        id: 'different-id',
+        name: mockSkill.name,
+        layer: mockSkill.layer
+      });
+      const conflicts = await registry.checkConflicts(sameNameSkill);
+      expect(conflicts).toContain(`Skill name '${mockSkill.name}' already exists in layer ${mockSkill.layer}`);
+    });
+
+    it('should detect missing dependencies', async () => {
+      const skillWithDependency = testUtils.createMockSkillDefinition({
+        id: 'skill-with-dep',
+        dependencies: [{
+          id: 'non-existent-skill',
+          name: 'Non-existent Skill',
+          version: '1.0.0',
+          type: SkillDependencyType.SKILL,
+          optional: false
+        }]
+      });
+      const conflicts = await registry.checkConflicts(skillWithDependency);
+      expect(conflicts).toContain(`Required skill dependency 'non-existent-skill' not found`);
+    });
+
+    it('should not report conflicts for valid skill', async () => {
+      const validSkill = testUtils.createMockSkillDefinition({
+        id: 'valid-skill',
+        name: 'Valid Skill'
+      });
+      const conflicts = await registry.checkConflicts(validSkill);
+      expect(conflicts).toHaveLength(0);
+    });
+  });
+
+  describe('getDependentSkills', () => {
+    beforeEach(async () => {
+      await registry.register(mockSkill);
+      await registry.register(testUtils.createMockSkillDefinition({
+        id: 'dependent-skill',
+        name: 'Dependent Skill',
+        dependencies: [{
+          id: mockSkill.id,
+          name: mockSkill.name,
+          version: mockSkill.version,
+          type: SkillDependencyType.SKILL,
+          optional: false
+        }]
+      }));
+    });
+
+    it('should return skills that depend on a specific skill', async () => {
+      const dependents = await registry.getDependentSkills(mockSkill.id);
+      expect(dependents).toHaveLength(1);
+      expect(dependents[0].id).toBe('dependent-skill');
+    });
+
+    it('should return empty array for skill with no dependents', async () => {
+      const dependents = await registry.getDependentSkills('non-existent-skill');
+      expect(dependents).toHaveLength(0);
     });
   });
 });
