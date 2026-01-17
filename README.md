@@ -1,119 +1,156 @@
 # Universal Skills Architecture
 
-A portable, layered skill management platform for AI agents and any project requiring standardized skill invocation and extension mechanisms.
+一个可迁移的、分层的技能管理平台，为任何项目和任何 AI 代理提供标准化的技能调用和扩展机制。
 
-## Overview
+## 🚀 项目概述
 
-The Universal Skills Architecture system provides a three-layer architecture for organizing and executing skills:
+通用技能架构系统是一个基于分层架构的可迁移技能管理平台。系统采用三层架构设计，提供从底层原子操作到高级API包装的完整技能生态。核心设计理念是创建一个标准化、可扩展、跨平台的技能定义和执行框架。
 
-- **Layer 1**: Atomic Operations - Direct function calls for basic operations
-- **Layer 2**: Sandboxed Tools - Command-line programs and tools in isolated environments  
-- **Layer 3**: API Wrappers - High-level API integrations and complex workflows
+## 🏗️ 三层架构
 
-## Features
+- **第一层：函数调用层** - 提供最基础的原子操作接口（文件读写、数据处理、基础计算）
+- **第二层：沙盒工具层** - 提供工具和命令的安全执行环境（Shell命令、外部工具调用、脚本执行）
+- **第三层：包装API层** - 提供高级抽象和复合功能（复杂业务逻辑、多步骤工作流、智能决策）
 
-- 🏗️ **Layered Architecture**: Three distinct layers for different abstraction levels
-- 🔧 **Skill Management**: Create, register, discover, and execute skills
-- 🔌 **Extension System**: Extend and compose existing skills
-- 📦 **Migration Support**: Export and import skill packages across environments
-- 🎯 **VS Code Integration**: Rich UI for skill management and editing
-- ✅ **Property-Based Testing**: Comprehensive correctness validation
-- 🛡️ **Security**: Sandboxed execution for safe skill operation
+## ✨ 核心特性
 
-## Project Structure
+- 🏗️ **分层架构**: 三个不同抽象级别的清晰分层
+- 🔧 **技能管理**: 创建、注册、发现和执行技能
+- 🔌 **扩展系统**: 扩展和组合现有技能
+- 📦 **迁移支持**: 跨环境导出和导入技能包
+- 🎯 **VS Code 集成**: 丰富的技能管理和编辑UI
+- ✅ **属性测试**: 全面的正确性验证
+- 🛡️ **安全执行**: 沙盒化技能执行环境
+
+## 🖥️ VS Code 扩展
+
+项目包含完整的 VS Code 扩展，提供专业的技能开发环境：
+
+### 主要功能
+- **技能浏览器** - 按层级和类别组织的分层树视图
+- **可视化编辑器** - 带实时验证的富文本技能编辑界面
+- **命令集成** - 完整的命令面板和上下文菜单支持
+- **文件系统集成** - 自动技能文件监控和同步
+- **导入导出** - 项目间技能共享功能
+- **测试集成** - 内置技能测试和验证
+- **配置管理** - 灵活的扩展配置和调试支持
+
+### 扩展安装
+```bash
+cd extension
+npm install
+npm run compile
+```
+
+## 📦 项目结构
 
 ```
 src/
-├── types/           # Core type definitions
-├── core/            # Core implementations (registry, execution engine)
-├── layers/          # Layer-specific implementations
-├── extensions/      # Extension management
-├── migration/       # Migration and portability
-└── vscode-extension/ # VS Code integration interfaces
+├── types/              # 核心类型定义
+├── core/               # 核心实现（注册表、执行引擎）
+├── layers/             # 分层特定实现
+├── extensions/         # 扩展管理
+├── migration/          # 迁移和可移植性
+└── vscode-extension/   # VS Code 集成接口
 
-tests/               # Test suite with property-based tests
+extension/              # VS Code 扩展
+├── src/
+│   ├── managers/       # 配置、命令、事件管理器
+│   ├── providers/      # 树视图和编辑器提供者
+│   └── media/          # UI 资源文件
+└── package.json        # 扩展清单
+
+tests/                  # 测试套件（包含属性测试）
 ```
 
-## Getting Started
+## 🚀 快速开始
 
-### Installation
-
+### 安装依赖
 ```bash
 npm install
 ```
 
-### Build
-
+### 构建项目
 ```bash
 npm run build
+npm run build:extension  # 构建VS Code扩展
 ```
 
-### Testing
-
+### 运行测试
 ```bash
-# Run all tests
+# 运行所有测试
 npm test
 
-# Run tests with coverage
+# 运行测试并生成覆盖率报告
 npm run test:coverage
 
-# Run tests in watch mode
+# 监控模式运行测试
 npm run test:watch
 ```
 
-### Development
-
+### 开发模式
 ```bash
-# Start development mode with auto-compilation
+# 启动自动编译的开发模式
 npm run dev
 
-# Lint code
+# 代码检查
 npm run lint
 ```
 
-## Core Concepts
+## 🧪 测试策略
 
-### Skill Definition
+项目采用双重测试方法：
 
-Skills are defined using a standardized format that includes:
+### 单元测试
+- 具体示例验证特定功能
+- 集成点测试验证组件间接口
+- 边界条件和错误情况测试
 
-- **Invocation Specification**: How the skill can be called
-- **Extension Points**: Where the skill can be extended
-- **Dependencies**: What the skill requires to function
-- **Metadata**: Author, version, tags, etc.
+### 属性测试（Property-Based Testing）
+- 使用 **fast-check** 框架
+- 每个属性测试运行最少100次迭代
+- 验证通用正确性属性，如：
+  - 技能定义模板一致性
+  - 注册查询往返行为
+  - 分层接口特性
+  - 扩展机制支持
 
-### Three-Layer Architecture
+## 📋 开发进度
 
-1. **Layer 1 - Atomic Operations**: Direct function calls for basic operations like file I/O, data processing, and calculations.
+### ✅ 已完成任务
 
-2. **Layer 2 - Sandboxed Tools**: Command-line programs and external tools executed in secure, isolated environments.
+- [x] **项目结构和核心接口** - TypeScript项目结构、核心接口定义、测试框架配置
+- [x] **技能定义引擎** - 技能定义模型、验证逻辑、模板生成功能
+- [x] **技能注册表** - 内存存储实现、技能发现和解析、查询过滤机制
+- [x] **分层执行引擎** - 三层执行架构、上下文管理、结果处理
+- [x] **错误处理和日志系统** - 统一错误处理、执行日志记录、性能监控
+- [x] **迁移管理器** - 配置导出、技能包序列化、环境兼容性检查
+- [x] **扩展管理器** - 技能继承组合、冲突检测解决、扩展路由管理
+- [x] **VS Code扩展基础架构** - 完整扩展实现、技能管理面板、可视化编辑器
 
-3. **Layer 3 - API Wrappers**: High-level API integrations, complex workflows, and intelligent decision-making systems.
+### 🔄 进行中任务
 
-### Extension System
+- [ ] **技能管理面板完善** - 技能树视图优化、搜索过滤功能
+- [ ] **技能编辑器增强** - 语法高亮、自动完成、预览功能
+- [ ] **同步和通知系统** - 变更监听、自动同步、状态更新
+- [ ] **集成和端到端测试** - 完整工作流测试、跨组件集成验证
+- [ ] **性能优化和文档** - 缓存机制、API文档、用户指南
 
-Skills can be extended through:
-- **Override**: Replace specific functionality
-- **Compose**: Combine multiple skills
-- **Decorate**: Add behavior around existing functionality
+## 💡 使用示例
 
-## Usage Examples
-
-### Creating a Skill
-
+### 创建技能
 ```typescript
 import { SkillDefinitionEngine } from './src/core';
 
 const engine = new SkillDefinitionEngine();
-const skill = engine.createSkillTemplate(1); // Layer 1 skill
+const skill = engine.createSkillTemplate(1); // 第一层技能
 
-skill.name = 'File Reader';
-skill.description = 'Reads file contents';
-// ... configure skill
+skill.name = '文件读取器';
+skill.description = '读取文件内容';
+// ... 配置技能
 ```
 
-### Registering and Executing Skills
-
+### 注册和执行技能
 ```typescript
 import { InMemorySkillRegistry, BasicExecutionEngine } from './src/core';
 
@@ -124,35 +161,31 @@ await registry.register(skill);
 const result = await executor.execute(skill.id, { filename: 'test.txt' });
 ```
 
-### Managing Skills with VS Code Extension
+### VS Code 扩展使用
+1. 在VS Code中打开项目
+2. 侧边栏显示技能浏览器
+3. 点击"+"创建新技能
+4. 使用可视化编辑器编辑技能
+5. 实时验证和预览功能
+6. 一键测试和导出
 
-The system includes interfaces for VS Code integration, providing:
-- Skill tree view and management
-- Visual skill editor with validation
-- Testing and debugging capabilities
-- Import/export functionality
+## 🤝 贡献指南
 
-## Testing Strategy
+1. Fork 项目仓库
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 为新功能添加测试
+4. 确保所有测试通过
+5. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+6. 推送到分支 (`git push origin feature/AmazingFeature`)
+7. 打开 Pull Request
 
-The project uses a dual testing approach:
+## 📄 许可证
 
-- **Unit Tests**: Specific examples and edge cases using Jest
-- **Property-Based Tests**: Universal properties using fast-check
+MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-Property-based tests validate correctness properties like:
-- Skill definition template consistency
-- Registration/query round-trip behavior
-- Layer interface characteristics
-- Extension mechanism support
+## 🔗 相关文档
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details.
+- [设计文档](.kiro/specs/universal-skills-architecture/design.md) - 详细的系统设计和架构
+- [需求文档](.kiro/specs/universal-skills-architecture/requirements.md) - 功能需求和验收标准
+- [任务列表](.kiro/specs/universal-skills-architecture/tasks.md) - 开发任务和进度跟踪
+- [VS Code 扩展文档](extension/README.md) - 扩展安装和使用指南
