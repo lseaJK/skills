@@ -1,6 +1,6 @@
 // Test setup file for Jest
 import 'jest';
-import { SkillDefinition, SkillExtensionType, SkillDependencyType } from '../src/types';
+import { SkillDefinition } from '../src/types';
 
 // Global test configuration
 beforeEach(() => {
@@ -24,7 +24,7 @@ export const testUtils = {
       outputSchema: { type: 'object', properties: {} },
       executionContext: {
         environment: {},
-        security: { sandboxed: true }
+        timeout: 30000
       },
       parameters: [],
       examples: []
