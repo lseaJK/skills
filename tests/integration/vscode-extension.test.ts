@@ -30,6 +30,9 @@ const mockContext: vscode.ExtensionContext = {
   } as any,
   extensionPath: '/mock/extension/path',
   extensionUri: vscode.Uri.file('/mock/extension/path'),
+  storagePath: '/mock/storage',
+  globalStoragePath: '/mock/global-storage',
+  logPath: '/mock/logs',
   environmentVariableCollection: {} as any,
   asAbsolutePath: jest.fn((path: string) => `/mock/extension/path/${path}`),
   storageUri: vscode.Uri.file('/mock/storage'),
@@ -245,7 +248,7 @@ describe('VS Code Extension Integration Tests', () => {
 
       // Test sync operations (mocked)
       // In real implementation, this would sync with external sources
-      const syncStatus = syncManager.getSyncStatus();
+      const syncStatus = syncManager.getStatus();
       expect(syncStatus).toBeDefined();
     });
 
@@ -422,11 +425,11 @@ describe('VS Code Extension Integration Tests', () => {
         throw mockSyncError;
       } catch (error) {
         // Verify sync manager handles error gracefully
-        expect(error.message).toBe('Sync failed');
+        expect((error as Error).message).toBe('Sync failed');
       }
 
       // Sync manager should still be operational
-      expect(syncManager.getSyncStatus()).toBeDefined();
+      expect(syncManager.getStatus()).toBeDefined();
     });
   });
 
@@ -438,7 +441,7 @@ describe('VS Code Extension Integration Tests', () => {
     test('should manage resources efficiently', async () => {
       // Create multiple skills to test resource usage
       const skills = Array.from({ length: 50 }, (_, i) => 
-        createTestSkill(`perf-test-skill-${i}`, (i % 3) + 1)
+        createTestSkill(`perf-test-skill-${i}`, ((i % 3) + 1) as 1 | 2 | 3)
       );
 
       const startTime = Date.now();
@@ -549,7 +552,11 @@ describe('VS Code Extension Integration Tests', () => {
         },
         executionContext: {
           environment: {},
-          timeout: 30000
+          timeout: 30000,
+          security: {
+            sandboxed: true,
+            allowedCommands: ['echo', 'cat']
+          }
         },
         parameters: [{
           name: 'input',
@@ -565,19 +572,21 @@ describe('VS Code Extension Integration Tests', () => {
         }]
       },
       extensionPoints: [{
-        id: `${id}-ext-point`,
         name: 'Extension Point',
         description: 'Test extension point',
-        interface: {
-          methods: ['execute'],
-          events: []
+        type: 'override',
+        schema: {
+          type: 'object',
+          properties: {
+            execute: { type: 'string' }
+          }
         }
       }],
       dependencies: [],
       metadata: {
         author: 'Test',
-        created: new Date(),
-        updated: new Date(),
+        created: new Date().toISOString(),
+        updated: new Date().toISOString(),
         tags: ['test'],
         category: 'testing'
       }

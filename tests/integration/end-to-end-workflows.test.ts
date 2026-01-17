@@ -12,9 +12,12 @@ import { MigrationManager } from '../../src/migration/migration-manager';
 import { 
   SkillDefinition, 
   SkillExtension, 
+  SkillExtensionType,
   ExtensionType,
   SkillDependencyType,
-  MigrationStrategy
+  MigrationStrategy,
+  IssueType,
+  IssueSeverity
 } from '../../src/types';
 
 describe('End-to-End Workflow Tests', () => {
@@ -97,7 +100,7 @@ describe('End-to-End Workflow Tests', () => {
               name: 'Count lines',
               description: 'Count lines in a text file',
               input: { filePath: '/tmp/test.txt', operation: 'count-lines' },
-              output: { result: '42', metadata: { command: 'wc -l' } }
+              expectedOutput: { result: '42', metadata: { command: 'wc -l' } }
             }
           ]
         },
@@ -106,9 +109,13 @@ describe('End-to-End Workflow Tests', () => {
             id: 'pre-processing',
             name: 'Pre-processing Hook',
             description: 'Hook for pre-processing files',
+            type: SkillExtensionType.OVERRIDE,
+            required: false,
             interface: {
-              methods: ['preProcess'],
-              events: ['beforeProcess']
+              type: 'object',
+              properties: {
+                preProcess: { type: 'string' }
+              }
             }
           }
         ],
@@ -317,11 +324,11 @@ describe('End-to-End Workflow Tests', () => {
       await skillRegistry.register(problematicSkill);
 
       // Create package
-      const package = await migrationManager.export(tempDir);
+      const skillPackage = await migrationManager.export(tempDir);
       
       // Attempt deployment (should handle gracefully)
       const deploymentPath = path.join(tempDir, 'failed-deployment');
-      const deploymentResult = await migrationManager.import(package, deploymentPath);
+      const deploymentResult = await migrationManager.import(skillPackage, deploymentPath);
 
       // Deployment might succeed but with warnings about missing dependencies
       if (!deploymentResult.success) {
@@ -345,7 +352,7 @@ describe('End-to-End Workflow Tests', () => {
       await skillRegistry.register(crossPlatformSkill);
 
       // Export package
-      const package = await migrationManager.export(tempDir);
+      const skillPackage = await migrationManager.export(tempDir);
       
       // Simulate migration to different platform
       const targetEnvironment = {
@@ -362,19 +369,19 @@ describe('End-to-End Workflow Tests', () => {
       };
 
       // Check compatibility
-      const compatibility = await migrationManager.validateCompatibility(package, targetEnvironment);
+      const compatibility = await migrationManager.validateCompatibility(skillPackage, targetEnvironment);
       expect(compatibility).toBeDefined();
       
       // Some skills may have compatibility issues
       const platformIssues = compatibility.issues.filter(issue => 
-        issue.type === 'PLATFORM_INCOMPATIBILITY'
+        issue.type === IssueType.PLATFORM_INCOMPATIBILITY
       );
       
       // Cross-platform skill should be compatible
-      expect(compatibility.compatible || compatibility.issues.every(i => i.severity !== 'CRITICAL')).toBe(true);
+      expect(compatibility.compatible || compatibility.issues.every(i => i.severity !== IssueSeverity.CRITICAL)).toBe(true);
 
       // Perform migration with adaptations
-      const migrationResult = await migrationManager.import(package, path.join(tempDir, 'cross-platform'));
+      const migrationResult = await migrationManager.import(skillPackage, path.join(tempDir, 'cross-platform'));
       
       // At least the cross-platform skill should migrate successfully
       expect(migrationResult.migratedSkills).toContain('cross-platform');
@@ -385,7 +392,7 @@ describe('End-to-End Workflow Tests', () => {
     test('should handle high-volume skill operations', async () => {
       const skillCount = 100;
       const skills = Array.from({ length: skillCount }, (_, i) => 
-        createPerformanceTestSkill(`perf-skill-${i}`, (i % 3) + 1)
+        createPerformanceTestSkill(`perf-skill-${i}`, ((i % 3) + 1) as 1 | 2 | 3)
       );
 
       // Measure bulk registration performance
@@ -463,7 +470,7 @@ describe('End-to-End Workflow Tests', () => {
         outputSchema: { type: 'object', properties: { result: { type: 'string' } } },
         executionContext: { environment: {}, timeout: 30000 },
         parameters: [{ name: 'input', type: 'string', required: true, description: 'Input' }],
-        examples: [{ name: 'Example', description: 'Test', input: { input: 'test' }, output: { result: 'test' } }]
+        examples: [{ name: 'Example', description: 'Test', input: { input: 'test' }, expectedOutput: { result: 'test' } }]
       },
       extensionPoints: [],
       dependencies: [],
@@ -489,13 +496,20 @@ describe('End-to-End Workflow Tests', () => {
         outputSchema: { type: 'object', properties: { result: { type: 'string' } } },
         executionContext: { environment: {}, timeout: 30000 },
         parameters: [{ name: 'input', type: 'string', required: true, description: 'Input' }],
-        examples: [{ name: 'Example', description: 'Test', input: { input: 'test' }, output: { result: 'test' } }]
+        examples: [{ name: 'Example', description: 'Test', input: { input: 'test' }, expectedOutput: { result: 'test' } }]
       },
       extensionPoints: [{
         id: 'team-extension-point',
         name: 'Team Extension Point',
         description: 'Extension point for team collaboration',
-        interface: { methods: ['collaborate'], events: ['teamEvent'] }
+        type: SkillExtensionType.OVERRIDE,
+        required: false,
+        interface: {
+          type: 'object',
+          properties: {
+            collaborate: { type: 'string' }
+          }
+        }
       }],
       dependencies: [],
       metadata: {
@@ -544,7 +558,7 @@ describe('End-to-End Workflow Tests', () => {
           name: 'Production Example', 
           description: 'Production usage', 
           input: { input: 'prod-data', config: {} }, 
-          output: { result: 'processed', metadata: {} } 
+          expectedOutput: { result: 'processed', metadata: {} } 
         }]
       },
       extensionPoints: [],
@@ -579,11 +593,12 @@ describe('End-to-End Workflow Tests', () => {
           environment: { PLATFORM: platform }, 
           timeout: 30000,
           security: { 
-            allowedCommands: platform === 'win32' ? ['dir', 'type'] : ['ls', 'cat']
+            allowedCommands: platform === 'win32' ? ['dir', 'type'] : ['ls', 'cat'],
+            sandboxed: true
           }
         },
         parameters: [{ name: 'input', type: 'string', required: true, description: 'Input' }],
-        examples: [{ name: 'Example', description: 'Test', input: { input: 'test' }, output: { result: 'test' } }]
+        examples: [{ name: 'Example', description: 'Test', input: { input: 'test' }, expectedOutput: { result: 'test' } }]
       },
       extensionPoints: [],
       dependencies: [],
@@ -609,7 +624,7 @@ describe('End-to-End Workflow Tests', () => {
         outputSchema: { type: 'object', properties: { result: { type: 'string' } } },
         executionContext: { environment: {}, timeout: 10000 }, // Shorter timeout for performance tests
         parameters: [{ name: 'input', type: 'string', required: true, description: 'Input' }],
-        examples: [{ name: 'Example', description: 'Test', input: { input: 'test' }, output: { result: 'test' } }]
+        examples: [{ name: 'Example', description: 'Test', input: { input: 'test' }, expectedOutput: { result: 'test' } }]
       },
       extensionPoints: [],
       dependencies: [],
@@ -635,7 +650,7 @@ describe('End-to-End Workflow Tests', () => {
         outputSchema: { type: 'object', properties: { result: { type: 'string' } } },
         executionContext: { environment: {}, timeout: 5000 },
         parameters: [{ name: 'input', type: 'string', required: true, description: 'Input' }],
-        examples: [{ name: 'Example', description: 'Test', input: { input: 'test' }, output: { result: 'test' } }]
+        examples: [{ name: 'Example', description: 'Test', input: { input: 'test' }, expectedOutput: { result: 'test' } }]
       },
       extensionPoints: [],
       dependencies: [],

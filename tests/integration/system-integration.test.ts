@@ -11,6 +11,7 @@ import { ErrorLoggingService } from '../../src/core/error-logging-service';
 import { 
   SkillDefinition, 
   SkillExtension, 
+  SkillExtensionType,
   ExtensionType,
   SkillDependencyType,
   ExecutionResult,
@@ -25,6 +26,120 @@ describe('System Integration Tests', () => {
   let extensionManager: ExtensionManager;
   let migrationManager: MigrationManager;
   let errorLoggingService: ErrorLoggingService;
+
+  // Helper functions
+  function createIntegrationTestSkill(id: string, layer: 1 | 2 | 3): SkillDefinition {
+    return {
+      id,
+      name: `Integration Test Skill ${id}`,
+      version: '1.0.0',
+      layer,
+      description: `Integration test skill for layer ${layer}`,
+      invocationSpec: {
+        inputSchema: {
+          type: 'object',
+          properties: {
+            input: { type: 'string' }
+          }
+        },
+        outputSchema: {
+          type: 'object',
+          properties: {
+            result: { type: 'string' }
+          }
+        },
+        executionContext: {
+          environment: {},
+          timeout: 30000
+        },
+        parameters: [{
+          name: 'input',
+          type: 'string',
+          required: true,
+          description: 'Input parameter'
+        }],
+        examples: [{
+          name: 'Example',
+          description: 'Test example',
+          input: { input: 'test' },
+          expectedOutput: { result: 'test result' }
+        }]
+      },
+      extensionPoints: [{
+        id: `${id}-ext-point`,
+        name: 'Extension Point',
+        description: 'Test extension point',
+        interface: {
+          type: 'object',
+          properties: {
+            execute: { type: 'string' }
+          }
+        },
+        type: ExtensionType.OVERRIDE,
+        required: false
+      }],
+      dependencies: [{
+        id: 'base-dependency',
+        name: 'Base Dependency',
+        version: '1.0.0',
+        type: SkillDependencyType.LIBRARY,
+        optional: true
+      }],
+      metadata: {
+        author: 'Integration Test',
+        created: new Date(),
+        updated: new Date(),
+        tags: ['integration', 'test', `layer-${layer}`],
+        category: 'testing'
+      }
+    };
+  }
+
+  function createComplexSkill(id: string, layer: 1 | 2 | 3): SkillDefinition {
+    const skill = createIntegrationTestSkill(id, layer);
+    
+    // Add complexity
+    skill.extensionPoints.push({
+      id: `${id}-complex-ext-point`,
+      name: 'Complex Extension Point',
+      description: 'Complex extension point with multiple interfaces',
+      interface: {
+        type: 'object',
+        properties: {
+          execute: { type: 'string' },
+          validate: { type: 'string' },
+          transform: { type: 'string' }
+        }
+      },
+      type: ExtensionType.OVERRIDE,
+      required: false
+    });
+
+    skill.dependencies.push({
+      id: 'complex-dependency',
+      name: 'Complex Dependency',
+      version: '2.0.0',
+      type: SkillDependencyType.SERVICE,
+      optional: false
+    });
+
+    skill.metadata.tags.push('complex', 'advanced');
+    
+    return skill;
+  }
+
+  function getTestParams(layer: number): any {
+    switch (layer) {
+      case 1:
+        return { input: 'integration test data' };
+      case 2:
+        return { command: 'echo', args: ['integration test'] };
+      case 3:
+        return { apiName: 'integration-api', endpoint: 'test', params: { data: 'test' } };
+      default:
+        return { input: 'test' };
+    }
+  }
 
   beforeEach(() => {
     errorLoggingService = new ErrorLoggingService();
@@ -260,7 +375,7 @@ describe('System Integration Tests', () => {
     test('should handle concurrent operations across components', async () => {
       const skillCount = 20;
       const skills = Array.from({ length: skillCount }, (_, i) => 
-        createIntegrationTestSkill(`concurrent-test-${i}`, (i % 3) + 1)
+        createIntegrationTestSkill(`concurrent-test-${i}`, ((i % 3) + 1) as 1 | 2 | 3)
       );
 
       // Concurrent registration
@@ -457,7 +572,7 @@ describe('System Integration Tests', () => {
     test('should maintain performance across integrated components', async () => {
       const skillCount = 50;
       const skills = Array.from({ length: skillCount }, (_, i) => 
-        createIntegrationTestSkill(`perf-integration-${i}`, (i % 3) + 1)
+        createIntegrationTestSkill(`perf-integration-${i}`, ((i % 3) + 1) as 1 | 2 | 3)
       );
 
       // Measure integrated operation performance
@@ -510,7 +625,7 @@ describe('System Integration Tests', () => {
       // Create memory-intensive operations
       const largeSkillCount = 100;
       const skills = Array.from({ length: largeSkillCount }, (_, i) => {
-        const skill = createIntegrationTestSkill(`memory-test-${i}`, (i % 3) + 1);
+        const skill = createIntegrationTestSkill(`memory-test-${i}`, ((i % 3) + 1) as 1 | 2 | 3);
         // Add large metadata to test memory handling
         skill.metadata.tags = Array.from({ length: 100 }, (_, j) => `tag-${i}-${j}`);
         return skill;
@@ -554,108 +669,4 @@ describe('System Integration Tests', () => {
       expect(testResult.success).toBe(true);
     });
   });
-
-  // Helper functions
-  function createIntegrationTestSkill(id: string, layer: 1 | 2 | 3): SkillDefinition {
-    return {
-      id,
-      name: `Integration Test Skill ${id}`,
-      version: '1.0.0',
-      layer,
-      description: `Integration test skill for layer ${layer}`,
-      invocationSpec: {
-        inputSchema: {
-          type: 'object',
-          properties: {
-            input: { type: 'string' }
-          }
-        },
-        outputSchema: {
-          type: 'object',
-          properties: {
-            result: { type: 'string' }
-          }
-        },
-        executionContext: {
-          environment: {},
-          timeout: 30000
-        },
-        parameters: [{
-          name: 'input',
-          type: 'string',
-          required: true,
-          description: 'Input parameter'
-        }],
-        examples: [{
-          name: 'Example',
-          description: 'Test example',
-          input: { input: 'test' },
-          output: { result: 'test result' }
-        }]
-      },
-      extensionPoints: [{
-        id: `${id}-ext-point`,
-        name: 'Extension Point',
-        description: 'Test extension point',
-        interface: {
-          methods: ['execute'],
-          events: []
-        }
-      }],
-      dependencies: [{
-        id: 'base-dependency',
-        name: 'Base Dependency',
-        version: '1.0.0',
-        type: SkillDependencyType.LIBRARY,
-        optional: true
-      }],
-      metadata: {
-        author: 'Integration Test',
-        created: new Date(),
-        updated: new Date(),
-        tags: ['integration', 'test', `layer-${layer}`],
-        category: 'testing'
-      }
-    };
-  }
-
-  function createComplexSkill(id: string, layer: 1 | 2 | 3): SkillDefinition {
-    const skill = createIntegrationTestSkill(id, layer);
-    
-    // Add complexity
-    skill.extensionPoints.push({
-      id: `${id}-complex-ext-point`,
-      name: 'Complex Extension Point',
-      description: 'Complex extension point with multiple interfaces',
-      interface: {
-        methods: ['execute', 'validate', 'transform'],
-        events: ['beforeExecute', 'afterExecute', 'onError']
-      }
-    });
-
-    skill.dependencies.push({
-      id: 'complex-dependency',
-      name: 'Complex Dependency',
-      version: '2.0.0',
-      type: SkillDependencyType.SERVICE,
-      optional: false
-    });
-
-    skill.metadata.tags.push('complex', 'advanced');
-    
-    return skill;
-  }
-
-  function getTestParams(layer: number): any {
-    switch (layer) {
-      case 1:
-        return { input: 'integration test data' };
-      case 2:
-        return { command: 'echo', args: ['integration test'] };
-      case 3:
-        return { apiName: 'integration-api', endpoint: 'test', params: { data: 'test' } };
-      default:
-        return { input: 'test' };
-    }
-  }
 });

@@ -10,6 +10,7 @@ import { MigrationManager } from '../../src/migration/migration-manager';
 import { 
   SkillDefinition, 
   SkillExtension, 
+  SkillExtensionType,
   ExtensionType, 
   SkillDependencyType,
   ExecutionContext,
@@ -178,7 +179,7 @@ describe('Skill Lifecycle Integration Tests', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
       expect(result.error?.suggestions).toBeDefined();
-      expect(result.error?.suggestions.length).toBeGreaterThan(0);
+      expect(result.error?.suggestions?.length).toBeGreaterThan(0);
 
       // Verify error logging
       const errorMetrics = executionEngine.getErrorMetrics();
@@ -445,11 +446,14 @@ describe('Skill Lifecycle Integration Tests', () => {
         id: `${id}-extension-point`,
         name: 'Main Extension Point',
         description: 'Primary extension point for this skill',
-        type: 'interface',
+        type: SkillExtensionType.OVERRIDE,
         required: false,
         interface: {
-          methods: ['execute', 'validate'],
-          events: ['beforeExecute', 'afterExecute']
+          type: 'object',
+          properties: {
+            execute: { type: 'string' },
+            validate: { type: 'string' }
+          }
         }
       }] as ExtensionPoint[],
       dependencies: [{
