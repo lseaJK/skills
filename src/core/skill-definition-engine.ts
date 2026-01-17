@@ -313,33 +313,51 @@ export class SkillDefinitionEngine {
   /**
    * Get suggestions for schema validation errors
    */
-  private getSuggestionsForSchemaError(error: any): string[] {
+  private getSuggestionsForSchemaError(error: unknown): string[] {
     const suggestions = [];
     
-    switch (error.keyword) {
-      case 'required':
-        suggestions.push(`Add the required property: ${error.params.missingProperty}`);
-        break;
-      case 'type':
-        suggestions.push(`Expected type ${error.params.type}, got ${typeof error.data}`);
-        break;
-      case 'format':
-        suggestions.push(`Value should match format: ${error.params.format}`);
-        break;
-      case 'pattern':
-        suggestions.push(`Value should match pattern: ${error.params.pattern}`);
-        break;
-      case 'enum':
-        suggestions.push(`Value should be one of: ${error.params.allowedValues?.join(', ')}`);
-        break;
-      case 'minLength':
-        suggestions.push(`Value should be at least ${error.params.limit} characters long`);
-        break;
-      case 'maxLength':
-        suggestions.push(`Value should be at most ${error.params.limit} characters long`);
-        break;
-      default:
-        suggestions.push('Check the data format and try again');
+    // Type guard to check if error has the expected structure
+    if (typeof error === 'object' && error !== null && 'keyword' in error) {
+      const ajvError = error as { keyword: string; params?: Record<string, unknown>; data?: unknown };
+      
+      switch (ajvError.keyword) {
+        case 'required': {
+          suggestions.push(`Add the required property: ${ajvError.params?.missingProperty}`);
+          break;
+        }
+        case 'type': {
+          suggestions.push(`Expected type ${ajvError.params?.type}, got ${typeof ajvError.data}`);
+          break;
+        }
+        case 'format': {
+          suggestions.push(`Value should match format: ${ajvError.params?.format}`);
+          break;
+        }
+        case 'pattern': {
+          suggestions.push(`Value should match pattern: ${ajvError.params?.pattern}`);
+          break;
+        }
+        case 'enum': {
+          const allowedValues = ajvError.params?.allowedValues;
+          if (Array.isArray(allowedValues)) {
+            suggestions.push(`Value should be one of: ${allowedValues.join(', ')}`);
+          }
+          break;
+        }
+        case 'minLength': {
+          suggestions.push(`Value should be at least ${ajvError.params?.limit} characters long`);
+          break;
+        }
+        case 'maxLength': {
+          suggestions.push(`Value should be at most ${ajvError.params?.limit} characters long`);
+          break;
+        }
+        default: {
+          suggestions.push('Check the data format and try again');
+        }
+      }
+    } else {
+      suggestions.push('Check the data format and try again');
     }
 
     return suggestions;
@@ -358,7 +376,7 @@ export class SkillDefinitionEngine {
       version: options?.version || '1.0.0',
       layer,
       description: options?.description || '',
-      invocationSpec: this.createInvocationSpecTemplate(layer, options),
+      invocationSpec: this.createInvocationSpecTemplate(layer),
       extensionPoints: this.createExtensionPointsTemplate(layer),
       dependencies: options?.dependencies || [],
       metadata: {
@@ -380,7 +398,7 @@ export class SkillDefinitionEngine {
    * Create multiple skill templates for different layers
    */
   createSkillTemplates(layers: (1 | 2 | 3)[], baseOptions?: SkillTemplateOptions): SkillDefinition[] {
-    return layers.map((layer, index) => {
+    return layers.map((layer) => {
       const layerOptions = {
         ...baseOptions,
         id: baseOptions?.id ? `${baseOptions.id}-layer${layer}` : undefined,
@@ -394,24 +412,24 @@ export class SkillDefinitionEngine {
   /**
    * Create skill template from existing skill (clone/copy)
    */
-  cloneSkillTemplate(sourceSkill: SkillDefinition, options?: Partial<SkillTemplateOptions>): SkillDefinition {
+  cloneSkillTemplate(sourceSkill: SkillDefinition, newOptions?: Partial<SkillTemplateOptions>): SkillDefinition {
     const cloned: SkillDefinition = JSON.parse(JSON.stringify(sourceSkill));
     
     // Update with new options
-    if (options?.id) cloned.id = options.id;
-    if (options?.name) cloned.name = options.name;
-    if (options?.version) cloned.version = options.version;
-    if (options?.description) cloned.description = options.description;
-    if (options?.author) cloned.metadata.author = options.author;
-    if (options?.tags) cloned.metadata.tags = options.tags;
-    if (options?.category) cloned.metadata.category = options.category;
+    if (newOptions?.id) cloned.id = newOptions.id;
+    if (newOptions?.name) cloned.name = newOptions.name;
+    if (newOptions?.version) cloned.version = newOptions.version;
+    if (newOptions?.description) cloned.description = newOptions.description;
+    if (newOptions?.author) cloned.metadata.author = newOptions.author;
+    if (newOptions?.tags) cloned.metadata.tags = newOptions.tags;
+    if (newOptions?.category) cloned.metadata.category = newOptions.category;
     
     // Update timestamps
     cloned.metadata.created = new Date();
     cloned.metadata.updated = new Date();
     
     // Generate new ID if not provided
-    if (!options?.id) {
+    if (!newOptions?.id) {
       cloned.id = this.generateSkillId();
     }
 
@@ -421,7 +439,7 @@ export class SkillDefinitionEngine {
   /**
    * Create invocation specification template
    */
-  private createInvocationSpecTemplate(layer: number, options?: SkillTemplateOptions): InvocationSpecification {
+  private createInvocationSpecTemplate(layer: number): InvocationSpecification {
     const baseTimeout = layer === 3 ? 60000 : 30000; // Layer 3 gets longer timeout
     const sandboxed = layer !== 1; // Layer 1 typically doesn't need sandboxing
     
@@ -558,11 +576,16 @@ export class SkillDefinitionEngine {
     updatedSkill.invocationSpec.parameters = [...skill.invocationSpec.parameters, parameter];
     
     // Update input schema
+    const existingProperties = skill.invocationSpec.inputSchema.properties || {};
+    const newProperty = parameter.validation || { 
+      type: parameter.type as 'string' | 'number' | 'boolean' | 'object' | 'array' | 'null'
+    };
+    
     updatedSkill.invocationSpec.inputSchema = {
       ...skill.invocationSpec.inputSchema,
       properties: {
-        ...skill.invocationSpec.inputSchema.properties,
-        [parameter.name]: parameter.validation || { type: parameter.type as any }
+        ...existingProperties,
+        [parameter.name]: newProperty
       }
     };
 
@@ -808,7 +831,7 @@ export class SkillDefinitionBuilder {
   /**
    * Add parameter
    */
-  withParameter(name: string, type: string, description: string, required: boolean = false, defaultValue?: any): SkillDefinitionBuilder {
+  withParameter(name: string, type: string, description: string, required: boolean = false, defaultValue?: unknown): SkillDefinitionBuilder {
     const parameter: Parameter = {
       name,
       type,
@@ -823,7 +846,7 @@ export class SkillDefinitionBuilder {
   /**
    * Add example
    */
-  withExample(name: string, description: string, input: any, expectedOutput: any): SkillDefinitionBuilder {
+  withExample(name: string, description: string, input: unknown, expectedOutput: unknown): SkillDefinitionBuilder {
     const example: Example = {
       name,
       description,
