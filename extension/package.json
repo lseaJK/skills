@@ -107,6 +107,30 @@
         "title": "Show Statistics",
         "category": "Skills Architecture",
         "icon": "$(graph)"
+      },
+      {
+        "command": "skillsArchitecture.sync",
+        "title": "Synchronize Skills",
+        "category": "Skills Architecture",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "skillsArchitecture.resolveConflicts",
+        "title": "Resolve Conflicts",
+        "category": "Skills Architecture",
+        "icon": "$(warning)"
+      },
+      {
+        "command": "skillsArchitecture.showSyncStatus",
+        "title": "Show Sync Status",
+        "category": "Skills Architecture",
+        "icon": "$(info)"
+      },
+      {
+        "command": "skillsArchitecture.toggleAutoSync",
+        "title": "Toggle Auto Sync",
+        "category": "Skills Architecture",
+        "icon": "$(sync)"
       }
     ],
     "views": {
@@ -163,6 +187,16 @@
           "command": "skillsArchitecture.showSkillStatistics",
           "when": "view == skillsExplorer",
           "group": "info@1"
+        },
+        {
+          "command": "skillsArchitecture.sync",
+          "when": "view == skillsExplorer",
+          "group": "sync@1"
+        },
+        {
+          "command": "skillsArchitecture.showSyncStatus",
+          "when": "view == skillsExplorer",
+          "group": "sync@2"
         }
       ],
       "view/item/context": [
@@ -257,6 +291,59 @@
           "type": "boolean",
           "default": false,
           "description": "Enable debug mode for detailed logging"
+        },
+        "skillsArchitecture.sync.autoSync": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically synchronize skills when changes are detected"
+        },
+        "skillsArchitecture.sync.syncInterval": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 5000,
+          "description": "Auto-sync interval in milliseconds (minimum 5 seconds)"
+        },
+        "skillsArchitecture.sync.conflictResolution": {
+          "type": "string",
+          "enum": ["manual", "local", "remote"],
+          "default": "manual",
+          "description": "How to resolve synchronization conflicts"
+        },
+        "skillsArchitecture.sync.enableNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show notifications for synchronization events"
+        },
+        "skillsArchitecture.sync.syncOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Perform initial synchronization when extension starts"
+        },
+        "skillsArchitecture.notifications.showSyncNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show notifications for sync events"
+        },
+        "skillsArchitecture.notifications.showConflictNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show notifications for sync conflicts"
+        },
+        "skillsArchitecture.notifications.showProgressNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show progress notifications for long operations"
+        },
+        "skillsArchitecture.notifications.autoHideTimeout": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 1000,
+          "description": "Auto-hide timeout for notifications in milliseconds"
+        },
+        "skillsArchitecture.notifications.enableStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show sync status in status bar"
         }
       }
     },

@@ -6,3 +6,4 @@ export * from './validation-engine';
 export * from './error-handler';
 export * from './logger';
 export * from './error-logging-service';
+export * from './synchronization-service';

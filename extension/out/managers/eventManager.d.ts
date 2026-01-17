@@ -11,7 +11,9 @@ export declare enum SkillsArchitectureEvent {
     CONFIGURATION_CHANGED = "configurationChanged",
     WORKSPACE_CHANGED = "workspaceChanged",
     TREE_SELECTION_CHANGED = "treeSelectionChanged",
-    TREE_VISIBILITY_CHANGED = "treeVisibilityChanged"
+    TREE_VISIBILITY_CHANGED = "treeVisibilityChanged",
+    SYNC_STATUS_CHANGED = "syncStatusChanged",
+    SYNC_CONFLICT_DETECTED = "syncConflictDetected"
 }
 /**
  * Event data interface
@@ -136,5 +138,9 @@ export declare class EventManager {
     getEventStatistics(): {
         [key in SkillsArchitectureEvent]?: number;
     };
+    /**
+     * Trigger auto-sync if enabled
+     */
+    private triggerAutoSync;
 }
 //# sourceMappingURL=eventManager.d.ts.map

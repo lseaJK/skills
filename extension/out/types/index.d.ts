@@ -109,5 +109,8 @@ export interface SkillRegistry {
     update(skillId: string, skill: SkillDefinition): Promise<void>;
     list(): Promise<SkillDefinition[]>;
     search(searchTerm: string): Promise<SkillDefinition[]>;
+    checkConflicts(skill: SkillDefinition): Promise<string[]>;
+    getDependentSkills(skillId: string): Promise<SkillDefinition[]>;
 }
+export * from './sync';
 //# sourceMappingURL=index.d.ts.map

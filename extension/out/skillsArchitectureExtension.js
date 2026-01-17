@@ -40,6 +40,7 @@ const skillEditorProvider_1 = require("./providers/skillEditorProvider");
 const configurationManager_1 = require("./managers/configurationManager");
 const commandManager_1 = require("./managers/commandManager");
 const eventManager_1 = require("./managers/eventManager");
+const syncManager_1 = require("./managers/syncManager");
 const skillRegistry_1 = require("./core/skillRegistry");
 /**
  * Main extension class that coordinates all components
@@ -53,6 +54,7 @@ class SkillsArchitectureExtension {
         this.commandManager = new commandManager_1.CommandManager(context);
         this.eventManager = new eventManager_1.EventManager(context);
         this.skillRegistry = new skillRegistry_1.InMemorySkillRegistry();
+        this.syncManager = new syncManager_1.SyncManager(context, this.skillRegistry, this.configurationManager);
         // Initialize providers
         this.skillsTreeProvider = new skillsTreeDataProvider_1.SkillsTreeDataProvider(context, this.configurationManager);
         this.skillEditorProvider = new skillEditorProvider_1.SkillEditorProvider(context, this.configurationManager, this.skillRegistry);
@@ -74,6 +76,7 @@ class SkillsArchitectureExtension {
             await this.configurationManager.initialize();
             await this.commandManager.initialize(this);
             await this.eventManager.initialize(this);
+            await this.syncManager.initialize();
             await this.skillsTreeProvider.initialize();
             await this.skillEditorProvider.initialize();
             // Register providers and views
@@ -159,6 +162,12 @@ class SkillsArchitectureExtension {
         this.configurationManager.setFirstTime(false);
     }
     /**
+     * Get the sync manager
+     */
+    getSyncManager() {
+        return this.syncManager;
+    }
+    /**
      * Get the skill registry
      */
     getSkillRegistry() {
@@ -211,6 +220,7 @@ class SkillsArchitectureExtension {
      * Dispose of all resources
      */
     dispose() {
+        this.syncManager.dispose();
         this.disposables.forEach(disposable => disposable.dispose());
         this.disposables = [];
     }

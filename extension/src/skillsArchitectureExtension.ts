@@ -4,6 +4,7 @@ import { SkillEditorProvider } from './providers/skillEditorProvider';
 import { ConfigurationManager } from './managers/configurationManager';
 import { CommandManager } from './managers/commandManager';
 import { EventManager } from './managers/eventManager';
+import { SyncManager } from './managers/syncManager';
 import { InMemorySkillRegistry } from './core/skillRegistry';
 
 /**
@@ -13,6 +14,7 @@ export class SkillsArchitectureExtension {
     private configurationManager: ConfigurationManager;
     private commandManager: CommandManager;
     private eventManager: EventManager;
+    private syncManager: SyncManager;
     private skillRegistry: InMemorySkillRegistry;
     private skillsTreeProvider: SkillsTreeDataProvider;
     private skillEditorProvider: SkillEditorProvider;
@@ -25,6 +27,7 @@ export class SkillsArchitectureExtension {
         this.commandManager = new CommandManager(context);
         this.eventManager = new EventManager(context);
         this.skillRegistry = new InMemorySkillRegistry();
+        this.syncManager = new SyncManager(context, this.skillRegistry, this.configurationManager);
         
         // Initialize providers
         this.skillsTreeProvider = new SkillsTreeDataProvider(context, this.configurationManager);
@@ -50,6 +53,7 @@ export class SkillsArchitectureExtension {
             await this.configurationManager.initialize();
             await this.commandManager.initialize(this);
             await this.eventManager.initialize(this);
+            await this.syncManager.initialize();
             await this.skillsTreeProvider.initialize();
             await this.skillEditorProvider.initialize();
 
@@ -173,6 +177,13 @@ export class SkillsArchitectureExtension {
     }
 
     /**
+     * Get the sync manager
+     */
+    getSyncManager(): SyncManager {
+        return this.syncManager;
+    }
+
+    /**
      * Get the skill registry
      */
     getSkillRegistry(): InMemorySkillRegistry {
@@ -233,6 +244,7 @@ export class SkillsArchitectureExtension {
      * Dispose of all resources
      */
     dispose(): void {
+        this.syncManager.dispose();
         this.disposables.forEach(disposable => disposable.dispose());
         this.disposables = [];
     }

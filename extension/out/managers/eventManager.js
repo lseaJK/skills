@@ -48,6 +48,8 @@ var SkillsArchitectureEvent;
     SkillsArchitectureEvent["WORKSPACE_CHANGED"] = "workspaceChanged";
     SkillsArchitectureEvent["TREE_SELECTION_CHANGED"] = "treeSelectionChanged";
     SkillsArchitectureEvent["TREE_VISIBILITY_CHANGED"] = "treeVisibilityChanged";
+    SkillsArchitectureEvent["SYNC_STATUS_CHANGED"] = "syncStatusChanged";
+    SkillsArchitectureEvent["SYNC_CONFLICT_DETECTED"] = "syncConflictDetected";
 })(SkillsArchitectureEvent || (exports.SkillsArchitectureEvent = SkillsArchitectureEvent = {}));
 /**
  * Manages events and notifications for the Skills Architecture extension
@@ -76,14 +78,20 @@ class EventManager {
         this.addEventListener(SkillsArchitectureEvent.SKILL_CREATED, async (event) => {
             await this.extension?.getSkillsTreeProvider().refresh();
             this.extension?.getConfigurationManager().debug('Tree refreshed after skill creation');
+            // Trigger sync if auto-sync is enabled
+            this.triggerAutoSync();
         });
         this.addEventListener(SkillsArchitectureEvent.SKILL_UPDATED, async (event) => {
             await this.extension?.getSkillsTreeProvider().refresh();
             this.extension?.getConfigurationManager().debug('Tree refreshed after skill update');
+            // Trigger sync if auto-sync is enabled
+            this.triggerAutoSync();
         });
         this.addEventListener(SkillsArchitectureEvent.SKILL_DELETED, async (event) => {
             await this.extension?.getSkillsTreeProvider().refresh();
             this.extension?.getConfigurationManager().debug('Tree refreshed after skill deletion');
+            // Trigger sync if auto-sync is enabled
+            this.triggerAutoSync();
         });
         // Listen for configuration changes
         this.addEventListener(SkillsArchitectureEvent.CONFIGURATION_CHANGED, async (event) => {
@@ -93,6 +101,13 @@ class EventManager {
         this.addEventListener(SkillsArchitectureEvent.WORKSPACE_CHANGED, async (event) => {
             await this.extension?.getSkillsTreeProvider().refresh();
             this.extension?.getConfigurationManager().debug('Tree refreshed after workspace change');
+        });
+        // Listen for sync events
+        this.addEventListener(SkillsArchitectureEvent.SYNC_STATUS_CHANGED, async (event) => {
+            this.extension?.getConfigurationManager().debug('Sync status changed:', event.data);
+        });
+        this.addEventListener(SkillsArchitectureEvent.SYNC_CONFLICT_DETECTED, async (event) => {
+            this.extension?.getConfigurationManager().debug('Sync conflict detected:', event.data);
         });
     }
     /**
@@ -316,6 +331,24 @@ class EventManager {
             stats[event.type] = (stats[event.type] || 0) + 1;
         });
         return stats;
+    }
+    /**
+     * Trigger auto-sync if enabled
+     */
+    triggerAutoSync() {
+        // Check if auto-sync is enabled and trigger sync
+        const syncManager = this.extension?.getSyncManager();
+        if (syncManager) {
+            // Use a small delay to batch multiple rapid changes
+            setTimeout(() => {
+                const config = vscode.workspace.getConfiguration('skillsArchitecture.sync');
+                if (config.get('autoSync', true)) {
+                    syncManager.synchronize().catch(error => {
+                        this.extension?.getConfigurationManager().debug('Auto-sync failed:', error);
+                    });
+                }
+            }, 1000); // 1 second delay
+        }
     }
 }
 exports.EventManager = EventManager;
