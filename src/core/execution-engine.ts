@@ -7,8 +7,11 @@ import {
   SkillRegistry,
   ExecutionMetadata,
   ResourceUsage,
-  ExecutionContext as SkillExecutionContext
+  ExecutionContext as SkillExecutionContext,
+  ErrorType,
+  ErrorSeverity
 } from '../types';
+import { ErrorLoggingService } from './error-logging-service';
 import { FunctionRegistry, AtomicOperations } from '../layers/layer1';
 import { SandboxManager, SandboxConfig } from '../layers/layer2';
 import { WorkflowEngine, Workflow } from '../layers/layer3';
@@ -64,12 +67,16 @@ export class LayeredExecutionEngine implements ExecutionEngine {
   private layer2Executor: SandboxManager;
   private layer3Executor: WorkflowEngine;
   private activeExecutions: Map<string, RuntimeExecutionContext> = new Map();
+  private errorLoggingService: ErrorLoggingService;
 
-  constructor(private registry: SkillRegistry) {
+  constructor(private registry: SkillRegistry, errorLoggingService?: ErrorLoggingService) {
     // Initialize layer executors
     this.layer1Executor = new FunctionRegistry();
     this.layer2Executor = new SandboxManager();
     this.layer3Executor = new WorkflowEngine();
+
+    // Initialize error handling and logging
+    this.errorLoggingService = errorLoggingService || new ErrorLoggingService();
 
     // Register built-in atomic operations
     AtomicOperations.registerBuiltInFunctions(this.layer1Executor);
@@ -96,6 +103,14 @@ export class LayeredExecutionEngine implements ExecutionEngine {
     // Track active execution
     this.activeExecutions.set(executionId, fullContext);
 
+    // Start performance monitoring
+    this.errorLoggingService.startExecution(skillId, executionId, {
+      userId: fullContext.userId,
+      sessionId: fullContext.sessionId,
+      operation: 'skill_execution',
+      additionalData: { parameters: params }
+    });
+
     try {
       // Resolve skill from registry
       const skill = await this.registry.resolve(skillId);
@@ -103,7 +118,13 @@ export class LayeredExecutionEngine implements ExecutionEngine {
       // Validate execution parameters
       const validation = await this.validateExecution(skill, params);
       if (!validation.valid) {
-        throw new Error(`Parameter validation failed: ${validation.errors.join(', ')}`);
+        const error = await this.errorLoggingService.createAndHandleError(
+          ErrorType.VALIDATION_ERROR,
+          `Parameter validation failed: ${validation.errors.join(', ')}`,
+          ErrorSeverity.ERROR,
+          { skillId, operation: 'parameter_validation', additionalData: { executionId } }
+        );
+        throw error.originalError;
       }
 
       // Set up timeout
@@ -123,6 +144,9 @@ export class LayeredExecutionEngine implements ExecutionEngine {
       // Calculate resource usage
       const resourceUsage = await this.calculateResourceUsage(executionId, duration);
       
+      // End performance monitoring
+      this.errorLoggingService.endExecution(skillId, executionId, true, output);
+      
       return {
         success: true,
         output,
@@ -141,9 +165,19 @@ export class LayeredExecutionEngine implements ExecutionEngine {
       const endTime = new Date();
       const duration = endTime.getTime() - startTime.getTime();
       
+      // Handle error through error logging service
+      const errorResult = await this.errorLoggingService.handleError(error as Error, {
+        skillId,
+        operation: 'skill_execution',
+        additionalData: { executionId, duration, parameters: params }
+      });
+
+      // End performance monitoring with error
+      this.errorLoggingService.endExecution(skillId, executionId, false, undefined, error as Error);
+      
       return {
         success: false,
-        error: this.createExecutionError(error),
+        error: this.createExecutionError(errorResult.originalError),
         metadata: {
           skillId,
           executionId,
@@ -174,6 +208,8 @@ export class LayeredExecutionEngine implements ExecutionEngine {
 
   async executeLayer1(skill: SkillDefinition, params: any, context: RuntimeExecutionContext): Promise<any> {
     // Layer 1: Direct function calls (atomic operations)
+    const startTime = Date.now();
+    
     try {
       // Extract function name from skill implementation
       const functionName = (skill.invocationSpec.executionContext as any).functionName || skill.name;
@@ -184,6 +220,9 @@ export class LayeredExecutionEngine implements ExecutionEngine {
       // Execute atomic function
       const result = await this.layer1Executor.executeFunction(functionName, paramArray);
       
+      const duration = Date.now() - startTime;
+      this.errorLoggingService.logLayerExecution(1, skill.id, context.executionId, 'function_call', true, duration);
+      
       return {
         type: 'atomic_operation',
         function: functionName,
@@ -193,12 +232,25 @@ export class LayeredExecutionEngine implements ExecutionEngine {
         timestamp: new Date()
       };
     } catch (error) {
-      throw new Error(`Layer 1 execution failed: ${(error as Error).message}`);
+      const duration = Date.now() - startTime;
+      this.errorLoggingService.logLayerExecution(1, skill.id, context.executionId, 'function_call', false, duration, error as Error);
+      
+      const errorResult = await this.errorLoggingService.createAndHandleError(
+        ErrorType.EXECUTION_ERROR,
+        `Layer 1 execution failed: ${(error as Error).message}`,
+        ErrorSeverity.ERROR,
+        { skillId: skill.id, layer: 1, operation: 'function_call', additionalData: { executionId: context.executionId } },
+        error as Error
+      );
+      
+      throw errorResult.originalError;
     }
   }
 
   async executeLayer2(skill: SkillDefinition, params: any, context: RuntimeExecutionContext): Promise<any> {
     // Layer 2: Sandboxed command execution
+    const startTime = Date.now();
+    
     try {
       // Create sandbox with skill-specific configuration
       const sandboxConfig: SandboxConfig = {
@@ -224,6 +276,9 @@ export class LayeredExecutionEngine implements ExecutionEngine {
         // Execute command in sandbox
         const commandResult = await this.layer2Executor.executeCommand(command, args, sandbox);
         
+        const duration = Date.now() - startTime;
+        this.errorLoggingService.logLayerExecution(2, skill.id, context.executionId, 'sandbox_command', true, duration);
+        
         return {
           type: 'sandboxed_command',
           command,
@@ -237,12 +292,25 @@ export class LayeredExecutionEngine implements ExecutionEngine {
         await sandbox.cleanup();
       }
     } catch (error) {
-      throw new Error(`Layer 2 execution failed: ${(error as Error).message}`);
+      const duration = Date.now() - startTime;
+      this.errorLoggingService.logLayerExecution(2, skill.id, context.executionId, 'sandbox_command', false, duration, error as Error);
+      
+      const errorResult = await this.errorLoggingService.createAndHandleError(
+        ErrorType.EXECUTION_ERROR,
+        `Layer 2 execution failed: ${(error as Error).message}`,
+        ErrorSeverity.ERROR,
+        { skillId: skill.id, layer: 2, operation: 'sandbox_command', additionalData: { executionId: context.executionId } },
+        error as Error
+      );
+      
+      throw errorResult.originalError;
     }
   }
 
   async executeLayer3(skill: SkillDefinition, params: any, context: RuntimeExecutionContext): Promise<any> {
     // Layer 3: High-level API wrappers and programming execution
+    const startTime = Date.now();
+    
     try {
       // Check if skill defines a workflow
       if ((skill.invocationSpec.executionContext as any).workflow) {
@@ -257,6 +325,9 @@ export class LayeredExecutionEngine implements ExecutionEngine {
         // Execute workflow
         const workflowResult = await this.layer3Executor.executeWorkflow(workflow);
         
+        const duration = Date.now() - startTime;
+        this.errorLoggingService.logLayerExecution(3, skill.id, context.executionId, 'workflow', true, duration);
+        
         return {
           type: 'workflow_execution',
           workflow: workflow.id,
@@ -270,6 +341,9 @@ export class LayeredExecutionEngine implements ExecutionEngine {
         const endpoint = params.endpoint || (skill.invocationSpec.executionContext as any).defaultEndpoint;
         
         // Simulate API execution (in real implementation, this would make actual API calls)
+        const duration = Date.now() - startTime;
+        this.errorLoggingService.logLayerExecution(3, skill.id, context.executionId, 'api_call', true, duration);
+        
         return {
           type: 'api_execution',
           api: apiName,
@@ -281,7 +355,19 @@ export class LayeredExecutionEngine implements ExecutionEngine {
         };
       }
     } catch (error) {
-      throw new Error(`Layer 3 execution failed: ${(error as Error).message}`);
+      const duration = Date.now() - startTime;
+      const operation = (skill.invocationSpec.executionContext as any).workflow ? 'workflow' : 'api_call';
+      this.errorLoggingService.logLayerExecution(3, skill.id, context.executionId, operation, false, duration, error as Error);
+      
+      const errorResult = await this.errorLoggingService.createAndHandleError(
+        ErrorType.EXECUTION_ERROR,
+        `Layer 3 execution failed: ${(error as Error).message}`,
+        ErrorSeverity.ERROR,
+        { skillId: skill.id, layer: 3, operation, additionalData: { executionId: context.executionId } },
+        error as Error
+      );
+      
+      throw errorResult.originalError;
     }
   }
 
@@ -397,7 +483,7 @@ export class LayeredExecutionEngine implements ExecutionEngine {
       code: error.code,
       details: error,
       stack: error.stack,
-      suggestions: this.generateErrorSuggestions(errorType, error)
+      suggestions: error.suggestions || this.generateErrorSuggestions(errorType, error)
     };
   }
 
@@ -469,6 +555,34 @@ export class LayeredExecutionEngine implements ExecutionEngine {
       total: 0,
       byLayer: { 1: 0, 2: 0, 3: 0 }
     };
+  }
+
+  /**
+   * Get the error logging service for external access
+   */
+  getErrorLoggingService(): ErrorLoggingService {
+    return this.errorLoggingService;
+  }
+
+  /**
+   * Get system health status
+   */
+  getSystemHealth() {
+    return this.errorLoggingService.getSystemHealth();
+  }
+
+  /**
+   * Get performance metrics
+   */
+  getPerformanceMetrics(skillId?: string) {
+    return this.errorLoggingService.getAggregatedMetrics(skillId);
+  }
+
+  /**
+   * Get error metrics
+   */
+  getErrorMetrics() {
+    return this.errorLoggingService.getErrorMetrics();
   }
 }
 

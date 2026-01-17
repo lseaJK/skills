@@ -6,13 +6,15 @@ export class SystemError extends Error {
   public readonly severity: ErrorSeverity;
   public readonly context: ErrorContext;
   public readonly suggestions: RecoverySuggestion[];
+  public readonly cause?: Error;
 
   constructor(
     type: ErrorType,
     message: string,
     severity: ErrorSeverity = ErrorSeverity.ERROR,
     context: ErrorContext = {},
-    suggestions: RecoverySuggestion[] = []
+    suggestions: RecoverySuggestion[] = [],
+    cause?: Error
   ) {
     super(message);
     this.name = 'SystemError';
@@ -20,6 +22,7 @@ export class SystemError extends Error {
     this.severity = severity;
     this.context = context;
     this.suggestions = suggestions;
+    this.cause = cause;
   }
 }
 
