@@ -238,7 +238,9 @@ describe('ExecutionEngine', () => {
         const validation = await layeredEngine.validateExecution(skillWithRequiredParams, {});
         
         expect(validation.valid).toBe(false);
-        expect(validation.errors).toContain("Required parameter 'requiredParam' is missing");
+        expect(validation.errors).toHaveLength(1);
+        expect(validation.errors[0].message).toBe("Required parameter 'requiredParam' is missing");
+        expect(validation.errors[0].code).toBe('MISSING_REQUIRED_PARAMETER');
       });
     });
   });

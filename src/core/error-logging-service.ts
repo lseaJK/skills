@@ -393,7 +393,7 @@ export class ErrorLoggingService implements ErrorListener {
 /**
  * Error metrics interface
  */
-interface ErrorMetrics {
+export interface ErrorMetrics {
   totalErrors: number;
   errorsByType: Map<ErrorType, number>;
   errorsBySeverity: Map<ErrorSeverity, number>;

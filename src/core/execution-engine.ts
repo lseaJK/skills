@@ -9,9 +9,13 @@ import {
   ResourceUsage,
   ExecutionContext as SkillExecutionContext,
   ErrorType,
-  ErrorSeverity
+  ErrorSeverity,
+  ValidationResult,
+  ValidationError,
+  ValidationWarning,
+  ValidationSeverity
 } from '../types';
-import { ErrorLoggingService } from './error-logging-service';
+import { ErrorLoggingService, ErrorMetrics } from './error-logging-service';
 import { FunctionRegistry, AtomicOperations } from '../layers/layer1';
 import { SandboxManager, SandboxConfig } from '../layers/layer2';
 import { WorkflowEngine, Workflow } from '../layers/layer3';
@@ -50,14 +54,7 @@ export interface ExecutionEngine {
   validateExecution(skill: SkillDefinition, params: any): Promise<ValidationResult>;
 }
 
-/**
- * Validation result for execution parameters
- */
-export interface ValidationResult {
-  valid: boolean;
-  errors: string[];
-  warnings: string[];
-}
+
 
 /**
  * Enhanced implementation of the execution engine with layered architecture
@@ -376,14 +373,20 @@ export class LayeredExecutionEngine implements ExecutionEngine {
   }
 
   async validateExecution(skill: SkillDefinition, params: any): Promise<ValidationResult> {
-    const errors: string[] = [];
-    const warnings: string[] = [];
+    const errors: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
 
     // Validate required parameters
     if (skill.invocationSpec.parameters) {
       for (const param of skill.invocationSpec.parameters) {
         if (param.required && (params[param.name] === undefined || params[param.name] === null)) {
-          errors.push(`Required parameter '${param.name}' is missing`);
+          errors.push({
+            code: 'MISSING_REQUIRED_PARAMETER',
+            message: `Required parameter '${param.name}' is missing`,
+            path: param.name,
+            severity: ValidationSeverity.ERROR,
+            suggestions: [`Provide a value for parameter '${param.name}'`]
+          });
         }
       }
     }
@@ -392,7 +395,12 @@ export class LayeredExecutionEngine implements ExecutionEngine {
     if (skill.invocationSpec.inputSchema && params) {
       // In real implementation, use JSON Schema validation
       if (typeof params !== 'object') {
-        errors.push('Parameters must be an object');
+        errors.push({
+          code: 'INVALID_PARAMETER_TYPE',
+          message: 'Parameters must be an object',
+          severity: ValidationSeverity.ERROR,
+          suggestions: ['Provide parameters as an object']
+        });
       }
     }
 
@@ -402,21 +410,35 @@ export class LayeredExecutionEngine implements ExecutionEngine {
       case 1:
         // Validate function parameters
         if (!execContext.functionName && !params.functionName) {
-          warnings.push('Function name not specified, using skill name as default');
+          warnings.push({
+            code: 'MISSING_FUNCTION_NAME',
+            message: 'Function name not specified, using skill name as default',
+            suggestions: ['Specify a function name for better clarity']
+          });
         }
         break;
       
       case 2:
         // Validate command parameters
         if (!execContext.command && !params.command) {
-          errors.push('Command is required for Layer 2 execution');
+          errors.push({
+            code: 'MISSING_COMMAND',
+            message: 'Command is required for Layer 2 execution',
+            severity: ValidationSeverity.ERROR,
+            suggestions: ['Provide a command to execute']
+          });
         }
         break;
       
       case 3:
         // Validate API or workflow parameters
         if (!execContext.workflow && !execContext.apiName && !params.apiName) {
-          errors.push('API name or workflow is required for Layer 3 execution');
+          errors.push({
+            code: 'MISSING_API_OR_WORKFLOW',
+            message: 'API name or workflow is required for Layer 3 execution',
+            severity: ValidationSeverity.ERROR,
+            suggestions: ['Provide either an API name or workflow configuration']
+          });
         }
         break;
     }
@@ -581,7 +603,7 @@ export class LayeredExecutionEngine implements ExecutionEngine {
   /**
    * Get error metrics
    */
-  getErrorMetrics() {
+  getErrorMetrics(): ErrorMetrics {
     return this.errorLoggingService.getErrorMetrics();
   }
 }
@@ -726,12 +748,17 @@ export class BasicExecutionEngine implements ExecutionEngine {
   }
 
   async validateExecution(skill: SkillDefinition, params: any): Promise<ValidationResult> {
-    const errors: string[] = [];
-    const warnings: string[] = [];
+    const errors: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
 
     // Basic validation
     if (!params && skill.invocationSpec.parameters?.some(p => p.required)) {
-      errors.push('Required parameters missing');
+      errors.push({
+        code: 'MISSING_REQUIRED_PARAMETERS',
+        message: 'Required parameters missing',
+        severity: ValidationSeverity.ERROR,
+        suggestions: ['Provide the required parameters']
+      });
     }
 
     return {

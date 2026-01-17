@@ -37,9 +37,9 @@ export interface LogContext {
 }
 
 /**
- * Performance metrics interface
+ * Performance metrics interface for logging
  */
-export interface PerformanceMetrics {
+export interface LoggingPerformanceMetrics {
   executionId: string;
   skillId: string;
   startTime: Date;
@@ -79,9 +79,9 @@ export interface LogAppender {
  */
 export interface PerformanceMonitor {
   startExecution(skillId: string, executionId: string, context?: LogContext): void;
-  endExecution(executionId: string, success: boolean, error?: Error): PerformanceMetrics;
+  endExecution(executionId: string, success: boolean, error?: Error): LoggingPerformanceMetrics;
   recordMetric(executionId: string, metric: string, value: number): void;
-  getMetrics(executionId: string): PerformanceMetrics | null;
+  getMetrics(executionId: string): LoggingPerformanceMetrics | null;
   getAggregatedMetrics(skillId?: string): AggregatedMetrics;
 }
 
@@ -311,8 +311,8 @@ export class UnifiedLogger {
  * Performance monitoring system
  */
 export class ExecutionPerformanceMonitor implements PerformanceMonitor {
-  private activeExecutions: Map<string, PerformanceMetrics> = new Map();
-  private completedExecutions: Map<string, PerformanceMetrics> = new Map();
+  private activeExecutions: Map<string, LoggingPerformanceMetrics> = new Map();
+  private completedExecutions: Map<string, LoggingPerformanceMetrics> = new Map();
   private logger: UnifiedLogger;
 
   constructor(logger: UnifiedLogger) {
@@ -320,7 +320,7 @@ export class ExecutionPerformanceMonitor implements PerformanceMonitor {
   }
 
   startExecution(skillId: string, executionId: string, context?: LogContext): void {
-    const metrics: PerformanceMetrics = {
+    const metrics: LoggingPerformanceMetrics = {
       executionId,
       skillId,
       startTime: new Date(),
@@ -340,7 +340,7 @@ export class ExecutionPerformanceMonitor implements PerformanceMonitor {
     );
   }
 
-  endExecution(executionId: string, success: boolean, error?: Error): PerformanceMetrics {
+  endExecution(executionId: string, success: boolean, error?: Error): LoggingPerformanceMetrics {
     const metrics = this.activeExecutions.get(executionId);
     if (!metrics) {
       throw new Error(`No active execution found for ID: ${executionId}`);
@@ -401,7 +401,7 @@ export class ExecutionPerformanceMonitor implements PerformanceMonitor {
     }
   }
 
-  getMetrics(executionId: string): PerformanceMetrics | null {
+  getMetrics(executionId: string): LoggingPerformanceMetrics | null {
     return this.activeExecutions.get(executionId) || 
            this.completedExecutions.get(executionId) || 
            null;
