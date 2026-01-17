@@ -1,0 +1,204 @@
+{
+  "name": "universal-skills-architecture",
+  "displayName": "Universal Skills Architecture",
+  "description": "A portable, layered skill management platform for AI agents",
+  "version": "1.0.0",
+  "publisher": "skills-architecture",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "skills",
+    "ai",
+    "architecture",
+    "management"
+  ],
+  "activationEvents": [
+    "onCommand:skillsArchitecture.showSkillPanel",
+    "onCommand:skillsArchitecture.createSkill",
+    "onCommand:skillsArchitecture.refreshSkills",
+    "onView:skillsExplorer"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "skillsArchitecture.showSkillPanel",
+        "title": "Show Skills Panel",
+        "category": "Skills Architecture"
+      },
+      {
+        "command": "skillsArchitecture.createSkill",
+        "title": "Create New Skill",
+        "category": "Skills Architecture",
+        "icon": "$(add)"
+      },
+      {
+        "command": "skillsArchitecture.refreshSkills",
+        "title": "Refresh Skills",
+        "category": "Skills Architecture",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "skillsArchitecture.editSkill",
+        "title": "Edit Skill",
+        "category": "Skills Architecture",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "skillsArchitecture.deleteSkill",
+        "title": "Delete Skill",
+        "category": "Skills Architecture",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "skillsArchitecture.testSkill",
+        "title": "Test Skill",
+        "category": "Skills Architecture",
+        "icon": "$(play)"
+      },
+      {
+        "command": "skillsArchitecture.exportSkill",
+        "title": "Export Skill",
+        "category": "Skills Architecture",
+        "icon": "$(export)"
+      },
+      {
+        "command": "skillsArchitecture.importSkill",
+        "title": "Import Skill",
+        "category": "Skills Architecture",
+        "icon": "$(import)"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "skillsExplorer",
+          "name": "Skills Architecture",
+          "when": "skillsArchitecture.enabled"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "skillsArchitecture",
+          "title": "Skills Architecture",
+          "icon": "$(symbol-class)"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "skillsArchitecture.createSkill",
+          "when": "view == skillsExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "skillsArchitecture.refreshSkills",
+          "when": "view == skillsExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "skillsArchitecture.editSkill",
+          "when": "view == skillsExplorer && viewItem == skill",
+          "group": "inline"
+        },
+        {
+          "command": "skillsArchitecture.testSkill",
+          "when": "view == skillsExplorer && viewItem == skill",
+          "group": "inline"
+        },
+        {
+          "command": "skillsArchitecture.deleteSkill",
+          "when": "view == skillsExplorer && viewItem == skill",
+          "group": "context"
+        },
+        {
+          "command": "skillsArchitecture.exportSkill",
+          "when": "view == skillsExplorer && viewItem == skill",
+          "group": "context"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "skillsArchitecture.editSkill",
+          "when": "false"
+        },
+        {
+          "command": "skillsArchitecture.deleteSkill",
+          "when": "false"
+        },
+        {
+          "command": "skillsArchitecture.testSkill",
+          "when": "false"
+        },
+        {
+          "command": "skillsArchitecture.exportSkill",
+          "when": "false"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Skills Architecture",
+      "properties": {
+        "skillsArchitecture.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Skills Architecture extension"
+        },
+        "skillsArchitecture.skillsPath": {
+          "type": "string",
+          "default": ".skills",
+          "description": "Path to skills directory relative to workspace root"
+        },
+        "skillsArchitecture.autoSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically save skills when editing"
+        },
+        "skillsArchitecture.autoValidate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically validate skills while editing"
+        },
+        "skillsArchitecture.showPreview": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show execution preview in skill editor"
+        },
+        "skillsArchitecture.enabledLayers": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 3
+          },
+          "default": [1, 2, 3],
+          "description": "Enabled skill layers"
+        },
+        "skillsArchitecture.debugMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable debug mode for detailed logging"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
