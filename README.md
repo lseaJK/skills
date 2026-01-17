@@ -165,12 +165,15 @@ npm run lint
 - [x] **VS Code扩展基础架构** - 完整扩展实现、技能管理面板、可视化编辑器
 - [x] **集成和端到端测试** ✨ - 完整工作流测试、跨组件集成验证、21个集成测试全部通过
 
+### ✅ 最新完成任务
+
+- [x] **性能优化和文档** ✨ - 智能缓存机制、资源管理、完整API文档、用户指南、示例技能库
+
 ### 🔄 进行中任务
 
 - [ ] **技能管理面板完善** - 技能树视图优化、搜索过滤功能
 - [ ] **技能编辑器增强** - 语法高亮、自动完成、预览功能
 - [ ] **同步和通知系统** - 变更监听、自动同步、状态更新
-- [ ] **性能优化和文档** - 缓存机制、API文档、用户指南
 
 ## 💡 使用示例
 
@@ -219,10 +222,67 @@ const result = await executor.execute(skill.id, { filename: 'test.txt' });
 
 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-## 🔗 相关文档
+## 📚 完整文档体系 ✨
 
-- [设计文档](.kiro/specs/universal-skills-architecture/design.md) - 详细的系统设计和架构
-- [需求文档](.kiro/specs/universal-skills-architecture/requirements.md) - 功能需求和验收标准
-- [任务列表](.kiro/specs/universal-skills-architecture/tasks.md) - 开发任务和进度跟踪
-- [VS Code 扩展文档](extension/README.md) - 扩展安装和使用指南
-- [集成测试文档](tests/integration/README.md) - 集成测试套件说明和使用指南 ✨
+项目提供了全面的文档支持，涵盖从入门到高级使用的所有场景：
+
+### 核心文档
+- **[API 文档](docs/api/README.md)** - 完整的API接口文档，包含所有类、方法和接口说明
+- **[用户指南](docs/user-guide/README.md)** - 详细的使用教程，从基础概念到高级功能
+- **[性能优化指南](docs/performance/optimization-guide.md)** - 性能调优策略和最佳实践
+
+### 示例和教程
+- **[示例技能库](examples/README.md)** - 涵盖三层架构的完整示例技能
+  - Layer 1: 高级文件读取器、数据处理工具
+  - Layer 2: Docker管理器、Git操作工具  
+  - Layer 3: CI/CD流水线、API数据处理器
+- **[使用案例](examples/use-cases/)** - 真实场景的完整解决方案
+- **[性能测试](examples/performance/)** - 性能优化示例和基准测试
+
+### 技术规范
+- **[设计文档](.kiro/specs/universal-skills-architecture/design.md)** - 详细的系统设计和架构
+- **[需求文档](.kiro/specs/universal-skills-architecture/requirements.md)** - 功能需求和验收标准
+- **[任务列表](.kiro/specs/universal-skills-architecture/tasks.md)** - 开发任务和进度跟踪
+
+## 🚀 性能优化 ✨
+
+系统实现了全面的性能优化机制：
+
+### 智能缓存系统
+- **LRU缓存**: 带TTL支持的高效缓存机制
+- **分层缓存**: 技能定义、查询结果、验证结果分别缓存
+- **自动失效**: 技能变更时智能缓存失效
+- **性能监控**: 实时缓存命中率和性能指标
+
+```typescript
+// 缓存性能监控
+const metrics = registry.getPerformanceMetrics();
+console.log('缓存命中率:', metrics.cache.hitRate);
+console.log('平均查询时间:', metrics.averageQueryTime);
+
+// 预加载常用技能
+await registry.preloadSkills(['file-reader-v1', 'data-validator-v1']);
+```
+
+### 资源管理
+- **执行限制**: 内存、CPU、网络请求限制
+- **资源监控**: 实时资源使用情况跟踪
+- **自动清理**: 过期资源和缓存自动清理
+- **性能分析**: 详细的执行性能报告
+
+```typescript
+// 资源限制配置
+const result = await engine.execute('skill-id', params, {
+  resourceLimits: {
+    maxMemory: 512 * 1024 * 1024,  // 512MB
+    maxDuration: 30000,            // 30秒
+    maxNetworkRequests: 50         // 最多50个网络请求
+  }
+});
+```
+
+### 查询优化
+- **智能查询**: 基于索引的快速技能发现
+- **结果缓存**: 查询结果自动缓存
+- **分页支持**: 大结果集的高效分页
+- **并行处理**: 兼容操作的并行执行

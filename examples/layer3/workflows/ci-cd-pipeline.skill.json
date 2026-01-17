@@ -1,0 +1,540 @@
+{
+  "id": "ci-cd-pipeline-v1",
+  "name": "CI/CD Pipeline Orchestrator",
+  "version": "1.0.0",
+  "layer": 3,
+  "description": "Comprehensive CI/CD pipeline that handles code checkout, testing, building, security scanning, and deployment across multiple environments",
+  "invocationSpec": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": "object",
+          "properties": {
+            "url": { "type": "string" },
+            "branch": { "type": "string", "default": "main" },
+            "credentials": {
+              "type": "object",
+              "properties": {
+                "username": { "type": "string" },
+                "token": { "type": "string" }
+              }
+            }
+          },
+          "required": ["url"]
+        },
+        "pipeline": {
+          "type": "object",
+          "properties": {
+            "stages": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["checkout", "test", "build", "security-scan", "deploy-staging", "integration-test", "deploy-production"]
+              },
+              "default": ["checkout", "test", "build", "deploy-staging"]
+            },
+            "parallel": {
+              "type": "boolean",
+              "default": false,
+              "description": "Run compatible stages in parallel"
+            },
+            "failFast": {
+              "type": "boolean",
+              "default": true,
+              "description": "Stop pipeline on first failure"
+            }
+          }
+        },
+        "build": {
+          "type": "object",
+          "properties": {
+            "dockerfile": { "type": "string", "default": "./Dockerfile" },
+            "context": { "type": "string", "default": "." },
+            "target": { "type": "string" },
+            "args": { "type": "object" },
+            "tags": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "testing": {
+          "type": "object",
+          "properties": {
+            "unitTests": { "type": "boolean", "default": true },
+            "integrationTests": { "type": "boolean", "default": true },
+            "coverageThreshold": { "type": "number", "default": 80 },
+            "testCommand": { "type": "string", "default": "npm test" }
+          }
+        },
+        "deployment": {
+          "type": "object",
+          "properties": {
+            "staging": {
+              "type": "object",
+              "properties": {
+                "environment": { "type": "string", "default": "staging" },
+                "namespace": { "type": "string" },
+                "replicas": { "type": "number", "default": 1 }
+              }
+            },
+            "production": {
+              "type": "object",
+              "properties": {
+                "environment": { "type": "string", "default": "production" },
+                "namespace": { "type": "string" },
+                "replicas": { "type": "number", "default": 3 },
+                "approvalRequired": { "type": "boolean", "default": true }
+              }
+            }
+          }
+        },
+        "notifications": {
+          "type": "object",
+          "properties": {
+            "slack": {
+              "type": "object",
+              "properties": {
+                "webhook": { "type": "string" },
+                "channel": { "type": "string" }
+              }
+            },
+            "email": {
+              "type": "array",
+              "items": { "type": "string", "format": "email" }
+            }
+          }
+        }
+      },
+      "required": ["repository"]
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "pipelineId": {
+          "type": "string",
+          "description": "Unique pipeline execution ID"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["success", "failure", "partial", "cancelled"],
+          "description": "Overall pipeline status"
+        },
+        "stages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "status": { "type": "string", "enum": ["success", "failure", "skipped", "running"] },
+              "duration": { "type": "number" },
+              "output": { "type": "string" },
+              "artifacts": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "artifacts": {
+          "type": "object",
+          "properties": {
+            "images": { "type": "array", "items": { "type": "string" } },
+            "reports": { "type": "array", "items": { "type": "string" } },
+            "deployments": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "totalDuration": { "type": "number" },
+            "testCoverage": { "type": "number" },
+            "securityScore": { "type": "number" },
+            "deploymentTime": { "type": "number" }
+          }
+        }
+      },
+      "required": ["pipelineId", "status", "stages"]
+    },
+    "executionContext": {
+      "workflow": {
+        "steps": [
+          {
+            "id": "checkout",
+            "name": "Code Checkout",
+            "type": "skill-execution",
+            "skillId": "git-checkout-v1",
+            "parameters": {
+              "repository": "${input.repository.url}",
+              "branch": "${input.repository.branch}",
+              "credentials": "${input.repository.credentials}"
+            },
+            "condition": "${input.pipeline.stages.includes('checkout')}"
+          },
+          {
+            "id": "test",
+            "name": "Run Tests",
+            "type": "parallel-group",
+            "condition": "${input.pipeline.stages.includes('test')}",
+            "dependsOn": ["checkout"],
+            "steps": [
+              {
+                "id": "unit-tests",
+                "type": "skill-execution",
+                "skillId": "test-runner-v1",
+                "parameters": {
+                  "testType": "unit",
+                  "command": "${input.testing.testCommand}",
+                  "coverageThreshold": "${input.testing.coverageThreshold}"
+                },
+                "condition": "${input.testing.unitTests}"
+              },
+              {
+                "id": "lint-check",
+                "type": "skill-execution",
+                "skillId": "code-linter-v1",
+                "parameters": {
+                  "rules": "standard"
+                }
+              }
+            ]
+          },
+          {
+            "id": "build",
+            "name": "Build Application",
+            "type": "skill-execution",
+            "skillId": "docker-builder-v1",
+            "parameters": {
+              "dockerfile": "${input.build.dockerfile}",
+              "context": "${input.build.context}",
+              "tags": "${input.build.tags}",
+              "args": "${input.build.args}"
+            },
+            "condition": "${input.pipeline.stages.includes('build')}",
+            "dependsOn": ["test"]
+          },
+          {
+            "id": "security-scan",
+            "name": "Security Scanning",
+            "type": "parallel-group",
+            "condition": "${input.pipeline.stages.includes('security-scan')}",
+            "dependsOn": ["build"],
+            "steps": [
+              {
+                "id": "vulnerability-scan",
+                "type": "skill-execution",
+                "skillId": "vulnerability-scanner-v1",
+                "parameters": {
+                  "image": "${steps.build.output.imageId}",
+                  "severity": "high"
+                }
+              },
+              {
+                "id": "secret-scan",
+                "type": "skill-execution",
+                "skillId": "secret-scanner-v1",
+                "parameters": {
+                  "path": ".",
+                  "excludePatterns": [".git", "node_modules"]
+                }
+              }
+            ]
+          },
+          {
+            "id": "deploy-staging",
+            "name": "Deploy to Staging",
+            "type": "skill-execution",
+            "skillId": "kubernetes-deployer-v1",
+            "parameters": {
+              "image": "${steps.build.output.imageId}",
+              "environment": "${input.deployment.staging.environment}",
+              "namespace": "${input.deployment.staging.namespace}",
+              "replicas": "${input.deployment.staging.replicas}"
+            },
+            "condition": "${input.pipeline.stages.includes('deploy-staging')}",
+            "dependsOn": ["security-scan"]
+          },
+          {
+            "id": "integration-test",
+            "name": "Integration Tests",
+            "type": "skill-execution",
+            "skillId": "integration-tester-v1",
+            "parameters": {
+              "environment": "${input.deployment.staging.environment}",
+              "testSuite": "integration",
+              "timeout": 300000
+            },
+            "condition": "${input.pipeline.stages.includes('integration-test')}",
+            "dependsOn": ["deploy-staging"]
+          },
+          {
+            "id": "deploy-production",
+            "name": "Deploy to Production",
+            "type": "skill-execution",
+            "skillId": "kubernetes-deployer-v1",
+            "parameters": {
+              "image": "${steps.build.output.imageId}",
+              "environment": "${input.deployment.production.environment}",
+              "namespace": "${input.deployment.production.namespace}",
+              "replicas": "${input.deployment.production.replicas}"
+            },
+            "condition": "${input.pipeline.stages.includes('deploy-production')}",
+            "dependsOn": ["integration-test"],
+            "approval": {
+              "required": "${input.deployment.production.approvalRequired}",
+              "approvers": ["devops-team", "tech-lead"],
+              "timeout": 3600000
+            }
+          }
+        ],
+        "errorHandling": {
+          "retryPolicy": {
+            "maxRetries": 2,
+            "backoffStrategy": "exponential",
+            "retryableErrors": ["network-error", "timeout-error"]
+          },
+          "rollbackPolicy": {
+            "enabled": true,
+            "conditions": ["deployment-failure", "health-check-failure"]
+          }
+        },
+        "notifications": {
+          "onStart": {
+            "channels": ["slack"],
+            "message": "Pipeline ${pipelineId} started for ${input.repository.url}#${input.repository.branch}"
+          },
+          "onSuccess": {
+            "channels": ["slack", "email"],
+            "message": "Pipeline ${pipelineId} completed successfully"
+          },
+          "onFailure": {
+            "channels": ["slack", "email"],
+            "message": "Pipeline ${pipelineId} failed at stage ${failedStage}"
+          }
+        }
+      },
+      "environment": {
+        "CI": "true",
+        "PIPELINE_ID": "${executionId}",
+        "BUILD_NUMBER": "${timestamp}"
+      },
+      "security": {
+        "secrets": ["docker-registry", "kubernetes-config", "notification-tokens"],
+        "allowedNetworks": ["docker-registry", "kubernetes-api", "notification-services"],
+        "resourceLimits": {
+          "maxMemory": 4294967296,
+          "maxCpuTime": 1800000,
+          "maxDiskSpace": 10737418240
+        }
+      },
+      "timeout": 3600000
+    },
+    "parameters": [
+      {
+        "name": "repository",
+        "type": "object",
+        "description": "Repository configuration with URL and credentials",
+        "required": true
+      },
+      {
+        "name": "pipeline",
+        "type": "object",
+        "description": "Pipeline configuration including stages and execution options",
+        "required": false
+      }
+    ],
+    "examples": [
+      {
+        "name": "Full CI/CD Pipeline",
+        "description": "Complete pipeline with all stages for a Node.js application",
+        "input": {
+          "repository": {
+            "url": "https://github.com/company/my-app.git",
+            "branch": "main",
+            "credentials": {
+              "username": "ci-user",
+              "token": "ghp_xxxxxxxxxxxx"
+            }
+          },
+          "pipeline": {
+            "stages": ["checkout", "test", "build", "security-scan", "deploy-staging", "integration-test"],
+            "parallel": true,
+            "failFast": true
+          },
+          "build": {
+            "dockerfile": "./Dockerfile",
+            "tags": ["my-app:latest", "my-app:${BUILD_NUMBER}"]
+          },
+          "testing": {
+            "unitTests": true,
+            "integrationTests": true,
+            "coverageThreshold": 85,
+            "testCommand": "npm run test:ci"
+          },
+          "deployment": {
+            "staging": {
+              "environment": "staging",
+              "namespace": "my-app-staging",
+              "replicas": 2
+            }
+          }
+        },
+        "expectedOutput": {
+          "pipelineId": "pipeline-20240117-120000",
+          "status": "success",
+          "stages": [
+            {
+              "name": "checkout",
+              "status": "success",
+              "duration": 5000,
+              "artifacts": ["source-code"]
+            },
+            {
+              "name": "test",
+              "status": "success",
+              "duration": 45000,
+              "artifacts": ["test-reports", "coverage-report"]
+            },
+            {
+              "name": "build",
+              "status": "success",
+              "duration": 120000,
+              "artifacts": ["docker-image"]
+            }
+          ],
+          "metrics": {
+            "totalDuration": 300000,
+            "testCoverage": 87.5,
+            "securityScore": 95
+          }
+        }
+      },
+      {
+        "name": "Production Deployment",
+        "description": "Production deployment with approval workflow",
+        "input": {
+          "repository": {
+            "url": "https://github.com/company/my-app.git",
+            "branch": "release/v1.2.0"
+          },
+          "pipeline": {
+            "stages": ["checkout", "test", "build", "deploy-production"],
+            "failFast": true
+          },
+          "deployment": {
+            "production": {
+              "environment": "production",
+              "namespace": "my-app-prod",
+              "replicas": 5,
+              "approvalRequired": true
+            }
+          },
+          "notifications": {
+            "slack": {
+              "webhook": "https://hooks.slack.com/services/xxx",
+              "channel": "#deployments"
+            },
+            "email": ["devops@company.com", "tech-lead@company.com"]
+          }
+        },
+        "expectedOutput": {
+          "pipelineId": "pipeline-20240117-140000",
+          "status": "success",
+          "stages": [
+            {
+              "name": "deploy-production",
+              "status": "success",
+              "duration": 180000,
+              "artifacts": ["deployment-manifest", "rollback-script"]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "extensionPoints": [
+    {
+      "id": "custom-test-runner",
+      "type": "function",
+      "description": "Custom test execution logic for specific frameworks"
+    },
+    {
+      "id": "deployment-strategy",
+      "type": "function",
+      "description": "Custom deployment strategies (blue-green, canary, etc.)"
+    },
+    {
+      "id": "approval-workflow",
+      "type": "function",
+      "description": "Custom approval workflow integration"
+    },
+    {
+      "id": "notification-handler",
+      "type": "function",
+      "description": "Custom notification channels and formatting"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "git-checkout-v1",
+      "type": "skill",
+      "optional": false,
+      "description": "Git repository checkout skill"
+    },
+    {
+      "id": "test-runner-v1",
+      "type": "skill",
+      "optional": false,
+      "description": "Test execution skill"
+    },
+    {
+      "id": "docker-builder-v1",
+      "type": "skill",
+      "optional": false,
+      "description": "Docker image building skill"
+    },
+    {
+      "id": "kubernetes-deployer-v1",
+      "type": "skill",
+      "optional": false,
+      "description": "Kubernetes deployment skill"
+    },
+    {
+      "id": "vulnerability-scanner-v1",
+      "type": "skill",
+      "optional": true,
+      "description": "Security vulnerability scanning"
+    },
+    {
+      "id": "notification-service-v1",
+      "type": "skill",
+      "optional": true,
+      "description": "Multi-channel notification service"
+    }
+  ],
+  "metadata": {
+    "author": "Skills Architecture Team",
+    "created": "2024-01-17T00:00:00Z",
+    "updated": "2024-01-17T12:00:00Z",
+    "tags": ["ci-cd", "pipeline", "devops", "automation", "deployment", "testing"],
+    "category": "devops-automation",
+    "license": "MIT",
+    "documentation": "https://docs.skills-architecture.com/skills/ci-cd-pipeline",
+    "repository": "https://github.com/skills-architecture/devops-skills",
+    "performance": {
+      "averageExecutionTime": 600000,
+      "memoryUsage": "high",
+      "cpuIntensive": true,
+      "networkDependent": true,
+      "scalable": true
+    },
+    "security": {
+      "requiresSecrets": true,
+      "auditLog": true,
+      "complianceReady": true
+    },
+    "reliability": {
+      "retrySupport": true,
+      "rollbackSupport": true,
+      "healthChecks": true
+    }
+  }
+}

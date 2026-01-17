@@ -1,0 +1,215 @@
+{
+  "id": "advanced-file-reader-v1",
+  "name": "Advanced File Reader",
+  "version": "1.2.0",
+  "layer": 1,
+  "description": "Advanced file reading with multiple encoding support, compression detection, and metadata extraction",
+  "invocationSpec": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "filePath": {
+          "type": "string",
+          "description": "Path to the file to read"
+        },
+        "encoding": {
+          "type": "string",
+          "enum": ["utf8", "ascii", "base64", "binary", "hex"],
+          "default": "utf8",
+          "description": "File encoding format"
+        },
+        "maxSize": {
+          "type": "number",
+          "default": 10485760,
+          "description": "Maximum file size in bytes (default: 10MB)"
+        },
+        "includeMetadata": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include file metadata in response"
+        },
+        "autoDetectEncoding": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically detect file encoding"
+        }
+      },
+      "required": ["filePath"]
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string",
+          "description": "File content"
+        },
+        "size": {
+          "type": "number",
+          "description": "File size in bytes"
+        },
+        "encoding": {
+          "type": "string",
+          "description": "Detected or specified encoding"
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "created": { "type": "string", "format": "date-time" },
+            "modified": { "type": "string", "format": "date-time" },
+            "permissions": { "type": "string" },
+            "mimeType": { "type": "string" },
+            "isCompressed": { "type": "boolean" }
+          }
+        },
+        "checksum": {
+          "type": "object",
+          "properties": {
+            "md5": { "type": "string" },
+            "sha256": { "type": "string" }
+          }
+        }
+      },
+      "required": ["content", "size", "encoding"]
+    },
+    "executionContext": {
+      "environment": {
+        "NODE_ENV": "production"
+      },
+      "security": {
+        "sandboxed": true,
+        "allowedPaths": ["/tmp", "./data", "./uploads"],
+        "maxFileSize": 10485760
+      },
+      "resources": {
+        "maxMemory": 134217728,
+        "maxCpuTime": 5000
+      }
+    },
+    "parameters": [
+      {
+        "name": "filePath",
+        "type": "string",
+        "description": "Path to the file to read",
+        "required": true,
+        "validation": {
+          "pattern": "^[a-zA-Z0-9./\\-_]+$",
+          "maxLength": 255
+        }
+      },
+      {
+        "name": "encoding",
+        "type": "string",
+        "description": "File encoding (utf8, ascii, base64, binary, hex)",
+        "required": false,
+        "defaultValue": "utf8"
+      },
+      {
+        "name": "maxSize",
+        "type": "number",
+        "description": "Maximum file size in bytes",
+        "required": false,
+        "defaultValue": 10485760,
+        "validation": {
+          "minimum": 1,
+          "maximum": 104857600
+        }
+      }
+    ],
+    "examples": [
+      {
+        "name": "Read text file with metadata",
+        "description": "Read a text file and include metadata",
+        "input": {
+          "filePath": "./README.md",
+          "encoding": "utf8",
+          "includeMetadata": true
+        },
+        "expectedOutput": {
+          "content": "# Universal Skills Architecture\n\nA portable, layered skill management platform...",
+          "size": 2048,
+          "encoding": "utf8",
+          "metadata": {
+            "created": "2024-01-17T10:00:00Z",
+            "modified": "2024-01-17T12:30:00Z",
+            "mimeType": "text/markdown",
+            "isCompressed": false
+          }
+        }
+      },
+      {
+        "name": "Read binary file",
+        "description": "Read a binary file with base64 encoding",
+        "input": {
+          "filePath": "./assets/logo.png",
+          "encoding": "base64",
+          "includeMetadata": true
+        },
+        "expectedOutput": {
+          "content": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
+          "size": 95,
+          "encoding": "base64",
+          "metadata": {
+            "mimeType": "image/png",
+            "isCompressed": false
+          }
+        }
+      },
+      {
+        "name": "Auto-detect encoding",
+        "description": "Automatically detect file encoding",
+        "input": {
+          "filePath": "./data/sample.txt",
+          "autoDetectEncoding": true
+        },
+        "expectedOutput": {
+          "content": "Sample file content",
+          "size": 19,
+          "encoding": "utf8"
+        }
+      }
+    ]
+  },
+  "extensionPoints": [
+    {
+      "id": "encoding-detector",
+      "type": "function",
+      "description": "Custom encoding detection algorithm"
+    },
+    {
+      "id": "metadata-extractor",
+      "type": "function",
+      "description": "Custom metadata extraction logic"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "crypto",
+      "type": "library",
+      "version": "^1.0.0",
+      "optional": false,
+      "description": "Cryptographic functions for checksums"
+    },
+    {
+      "id": "mime-types",
+      "type": "library",
+      "version": "^2.1.0",
+      "optional": true,
+      "description": "MIME type detection"
+    }
+  ],
+  "metadata": {
+    "author": "Skills Architecture Team",
+    "created": "2024-01-17T00:00:00Z",
+    "updated": "2024-01-17T12:00:00Z",
+    "tags": ["file", "io", "encoding", "metadata", "checksum"],
+    "category": "file-operations",
+    "license": "MIT",
+    "documentation": "https://docs.skills-architecture.com/skills/advanced-file-reader",
+    "repository": "https://github.com/skills-architecture/core-skills",
+    "performance": {
+      "averageExecutionTime": 150,
+      "memoryUsage": "low",
+      "cpuIntensive": false
+    }
+  }
+}

@@ -1,10 +1,25 @@
 import { SkillDefinition, SkillQuery, SkillRegistry, ValidationResult, ValidationError, ValidationWarning, ValidationSeverity } from '../types';
+import { SkillCache, ResourceTracker } from './performance-cache';
 
 /**
- * In-memory implementation of the skill registry
+ * In-memory implementation of the skill registry with performance optimizations
  */
 export class InMemorySkillRegistry implements SkillRegistry {
   private skills: Map<string, SkillDefinition> = new Map();
+  private cache: SkillCache;
+  private performanceMetrics: {
+    queryCount: number;
+    averageQueryTime: number;
+    cacheHitRate: number;
+  } = {
+    queryCount: 0,
+    averageQueryTime: 0,
+    cacheHitRate: 0
+  };
+
+  constructor() {
+    this.cache = new SkillCache(1000, 5 * 60 * 1000); // 1000 entries, 5 minutes TTL
+  }
 
   async register(skill: SkillDefinition): Promise<void> {
     // Validate skill before registration
@@ -29,12 +44,33 @@ export class InMemorySkillRegistry implements SkillRegistry {
     }
 
     this.skills.set(skill.id, skill);
+    
+    // Cache the skill and invalidate related caches
+    this.cache.cacheSkill(skill.id, skill);
+    this.invalidateQueryCaches();
   }
 
   async discover(query: SkillQuery): Promise<SkillDefinition[]> {
+    const tracker = new ResourceTracker();
+    const startTime = Date.now();
+    
+    // Generate cache key for this query
+    const cacheKey = SkillCache.generateQueryKey(query);
+    
+    // Check cache first
+    const cachedResult = this.cache.get(cacheKey);
+    if (cachedResult) {
+      this.updatePerformanceMetrics(Date.now() - startTime, true);
+      return cachedResult;
+    }
+    
+    tracker.checkpoint('cache-miss');
+    
     const allSkills = Array.from(this.skills.values());
     
-    return allSkills.filter(skill => {
+    tracker.checkpoint('skills-loaded');
+    
+    const results = allSkills.filter(skill => {
       if (query.name && !skill.name.toLowerCase().includes(query.name.toLowerCase())) {
         return false;
       }
@@ -55,17 +91,42 @@ export class InMemorySkillRegistry implements SkillRegistry {
       }
       return true;
     }).slice(query.offset || 0, (query.offset || 0) + (query.limit || 100));
+    
+    tracker.checkpoint('filtering-complete');
+    
+    // Cache the results
+    this.cache.cacheQuery(cacheKey, results);
+    
+    const duration = Date.now() - startTime;
+    this.updatePerformanceMetrics(duration, false);
+    
+    return results;
   }
 
   async resolve(skillId: string): Promise<SkillDefinition> {
+    // Check cache first
+    const cached = this.cache.get(skillId);
+    if (cached) {
+      return cached;
+    }
+    
     const skill = this.skills.get(skillId);
     if (!skill) {
       throw new Error(`Skill not found: ${skillId}`);
     }
+    
+    // Cache the skill
+    this.cache.cacheSkill(skillId, skill);
     return skill;
   }
 
   validate(skill: SkillDefinition): ValidationResult {
+    // Check cache for validation result
+    const cached = this.cache.getCachedValidation(skill.id);
+    if (cached) {
+      return cached;
+    }
+    
     const errors: ValidationError[] = [];
     const warnings: ValidationWarning[] = [];
 
@@ -173,11 +234,16 @@ export class InMemorySkillRegistry implements SkillRegistry {
       });
     }
 
-    return {
+    const result = {
       valid: errors.length === 0,
       errors,
       warnings
     };
+    
+    // Cache the validation result
+    this.cache.cacheValidation(skill.id, result);
+    
+    return result;
   }
 
   async getByLayer(layer: number): Promise<SkillDefinition[]> {
@@ -189,6 +255,10 @@ export class InMemorySkillRegistry implements SkillRegistry {
       throw new Error(`Skill not found: ${skillId}`);
     }
     this.skills.delete(skillId);
+    
+    // Invalidate caches
+    this.cache.delete(skillId);
+    this.invalidateQueryCaches();
   }
 
   async update(skillId: string, skill: SkillDefinition): Promise<void> {
@@ -202,6 +272,10 @@ export class InMemorySkillRegistry implements SkillRegistry {
     }
 
     this.skills.set(skillId, skill);
+    
+    // Update caches
+    this.cache.cacheSkill(skillId, skill);
+    this.invalidateQueryCaches();
   }
 
   async list(): Promise<SkillDefinition[]> {
@@ -258,5 +332,73 @@ export class InMemorySkillRegistry implements SkillRegistry {
     return Array.from(this.skills.values()).filter(skill =>
       skill.dependencies.some(dep => dep.id === skillId)
     );
+  }
+
+  /**
+   * Get performance metrics
+   */
+  getPerformanceMetrics() {
+    const cacheStats = this.cache.getStats();
+    return {
+      ...this.performanceMetrics,
+      cache: cacheStats,
+      totalSkills: this.skills.size
+    };
+  }
+
+  /**
+   * Clear all caches
+   */
+  clearCache(): void {
+    this.cache.clear();
+  }
+
+  /**
+   * Optimize registry performance
+   */
+  optimize(): void {
+    // Cleanup expired cache entries
+    this.cache.cleanup();
+    
+    // Reset performance metrics
+    this.performanceMetrics = {
+      queryCount: 0,
+      averageQueryTime: 0,
+      cacheHitRate: 0
+    };
+  }
+
+  /**
+   * Preload frequently accessed skills
+   */
+  async preloadSkills(skillIds: string[]): Promise<void> {
+    for (const skillId of skillIds) {
+      const skill = this.skills.get(skillId);
+      if (skill) {
+        this.cache.cacheSkill(skillId, skill);
+      }
+    }
+  }
+
+  private updatePerformanceMetrics(duration: number, cacheHit: boolean): void {
+    this.performanceMetrics.queryCount++;
+    
+    // Update average query time
+    const totalTime = this.performanceMetrics.averageQueryTime * (this.performanceMetrics.queryCount - 1) + duration;
+    this.performanceMetrics.averageQueryTime = totalTime / this.performanceMetrics.queryCount;
+    
+    // Update cache hit rate
+    const cacheStats = this.cache.getStats();
+    this.performanceMetrics.cacheHitRate = cacheStats.hitRate;
+  }
+
+  private invalidateQueryCaches(): void {
+    // Remove all cached query results
+    const keys = this.cache.keys();
+    for (const key of keys) {
+      if (typeof key === 'string' && key.startsWith('query:')) {
+        this.cache.delete(key);
+      }
+    }
   }
 }

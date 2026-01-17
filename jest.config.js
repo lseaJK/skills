@@ -17,17 +17,25 @@ module.exports = {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  testTimeout: 30000, // Increased timeout for integration tests
   projects: [
     {
       displayName: 'unit',
+      preset: 'ts-jest',
+      testEnvironment: 'node',
       testMatch: ['<rootDir>/tests/core/**/*.test.ts', '<rootDir>/tests/extensions/**/*.test.ts', '<rootDir>/tests/migration/**/*.test.ts'],
-      testTimeout: 10000
+      transform: {
+        '^.+\\.ts$': 'ts-jest',
+      },
+      setupFilesAfterEnv: ['<rootDir>/tests/setup.ts']
     },
     {
       displayName: 'integration',
+      preset: 'ts-jest',
+      testEnvironment: 'node',
       testMatch: ['<rootDir>/tests/integration/**/*.test.ts'],
-      testTimeout: 60000, // Longer timeout for integration tests
+      transform: {
+        '^.+\\.ts$': 'ts-jest',
+      },
       setupFilesAfterEnv: ['<rootDir>/tests/setup.ts']
     }
   ]

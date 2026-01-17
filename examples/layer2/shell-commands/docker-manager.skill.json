@@ -1,0 +1,295 @@
+{
+  "id": "docker-manager-v1",
+  "name": "Docker Container Manager",
+  "version": "1.0.0",
+  "layer": 2,
+  "description": "Manages Docker containers with support for building, running, and monitoring containers in a secure sandbox environment",
+  "invocationSpec": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["build", "run", "stop", "status", "logs", "cleanup"],
+          "description": "Docker action to perform"
+        },
+        "imageName": {
+          "type": "string",
+          "description": "Docker image name"
+        },
+        "containerName": {
+          "type": "string",
+          "description": "Container name (optional)"
+        },
+        "dockerfile": {
+          "type": "string",
+          "description": "Path to Dockerfile for build action"
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "host": { "type": "number" },
+              "container": { "type": "number" }
+            }
+          },
+          "description": "Port mappings for run action"
+        },
+        "environment": {
+          "type": "object",
+          "description": "Environment variables"
+        },
+        "volumes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "host": { "type": "string" },
+              "container": { "type": "string" },
+              "mode": { "type": "string", "enum": ["ro", "rw"], "default": "rw" }
+            }
+          },
+          "description": "Volume mounts"
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "detached": { "type": "boolean", "default": true },
+            "removeOnExit": { "type": "boolean", "default": false },
+            "interactive": { "type": "boolean", "default": false }
+          }
+        }
+      },
+      "required": ["action"]
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Operation success status"
+        },
+        "containerId": {
+          "type": "string",
+          "description": "Container ID (for run/build actions)"
+        },
+        "status": {
+          "type": "string",
+          "description": "Container status"
+        },
+        "output": {
+          "type": "string",
+          "description": "Command output"
+        },
+        "logs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Container logs (for logs action)"
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "image": { "type": "string" },
+            "created": { "type": "string" },
+            "ports": { "type": "array" },
+            "volumes": { "type": "array" }
+          }
+        }
+      },
+      "required": ["success", "output"]
+    },
+    "executionContext": {
+      "command": "docker",
+      "workingDirectory": "/tmp/docker-workspace",
+      "environment": {
+        "DOCKER_HOST": "unix:///var/run/docker.sock",
+        "DOCKER_API_VERSION": "1.41"
+      },
+      "security": {
+        "allowedCommands": ["docker"],
+        "allowedPaths": [
+          "/tmp/docker-workspace",
+          "/var/run/docker.sock",
+          "./docker",
+          "./build"
+        ],
+        "networkAccess": true,
+        "privileged": false,
+        "resourceLimits": {
+          "maxMemory": 1073741824,
+          "maxCpuTime": 300000,
+          "maxDiskSpace": 2147483648
+        }
+      },
+      "timeout": 300000
+    },
+    "parameters": [
+      {
+        "name": "action",
+        "type": "string",
+        "description": "Docker action: build, run, stop, status, logs, cleanup",
+        "required": true,
+        "validation": {
+          "enum": ["build", "run", "stop", "status", "logs", "cleanup"]
+        }
+      },
+      {
+        "name": "imageName",
+        "type": "string",
+        "description": "Docker image name (required for most actions)",
+        "required": false,
+        "validation": {
+          "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*(?::[a-zA-Z0-9_][a-zA-Z0-9._-]*)?$"
+        }
+      },
+      {
+        "name": "containerName",
+        "type": "string",
+        "description": "Container name (optional, auto-generated if not provided)",
+        "required": false,
+        "validation": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$"
+        }
+      }
+    ],
+    "examples": [
+      {
+        "name": "Build Docker image",
+        "description": "Build a Docker image from Dockerfile",
+        "input": {
+          "action": "build",
+          "imageName": "my-app:latest",
+          "dockerfile": "./Dockerfile"
+        },
+        "expectedOutput": {
+          "success": true,
+          "containerId": "sha256:abc123...",
+          "output": "Successfully built abc123...",
+          "metadata": {
+            "image": "my-app:latest",
+            "created": "2024-01-17T12:00:00Z"
+          }
+        }
+      },
+      {
+        "name": "Run container with port mapping",
+        "description": "Run a container with port and volume mappings",
+        "input": {
+          "action": "run",
+          "imageName": "nginx:alpine",
+          "containerName": "web-server",
+          "ports": [
+            { "host": 8080, "container": 80 }
+          ],
+          "volumes": [
+            { "host": "./html", "container": "/usr/share/nginx/html", "mode": "ro" }
+          ],
+          "options": {
+            "detached": true,
+            "removeOnExit": false
+          }
+        },
+        "expectedOutput": {
+          "success": true,
+          "containerId": "def456...",
+          "status": "running",
+          "output": "Container started successfully",
+          "metadata": {
+            "image": "nginx:alpine",
+            "ports": ["8080:80"],
+            "volumes": ["./html:/usr/share/nginx/html:ro"]
+          }
+        }
+      },
+      {
+        "name": "Get container status",
+        "description": "Check the status of a running container",
+        "input": {
+          "action": "status",
+          "containerName": "web-server"
+        },
+        "expectedOutput": {
+          "success": true,
+          "status": "running",
+          "output": "Container is running",
+          "metadata": {
+            "image": "nginx:alpine",
+            "created": "2024-01-17T12:00:00Z"
+          }
+        }
+      },
+      {
+        "name": "Get container logs",
+        "description": "Retrieve logs from a container",
+        "input": {
+          "action": "logs",
+          "containerName": "web-server"
+        },
+        "expectedOutput": {
+          "success": true,
+          "output": "Logs retrieved successfully",
+          "logs": [
+            "2024/01/17 12:00:00 [notice] 1#1: using the \"epoll\" event method",
+            "2024/01/17 12:00:00 [notice] 1#1: nginx/1.21.6",
+            "2024/01/17 12:00:00 [notice] 1#1: start worker processes"
+          ]
+        }
+      }
+    ]
+  },
+  "extensionPoints": [
+    {
+      "id": "image-builder",
+      "type": "function",
+      "description": "Custom Docker image building logic"
+    },
+    {
+      "id": "container-monitor",
+      "type": "function",
+      "description": "Custom container monitoring and health checks"
+    },
+    {
+      "id": "security-scanner",
+      "type": "function",
+      "description": "Container security scanning integration"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "docker-engine",
+      "type": "system",
+      "version": ">=20.10.0",
+      "optional": false,
+      "description": "Docker Engine runtime"
+    },
+    {
+      "id": "docker-compose",
+      "type": "system",
+      "version": ">=2.0.0",
+      "optional": true,
+      "description": "Docker Compose for multi-container applications"
+    }
+  ],
+  "metadata": {
+    "author": "Skills Architecture Team",
+    "created": "2024-01-17T00:00:00Z",
+    "updated": "2024-01-17T12:00:00Z",
+    "tags": ["docker", "containers", "devops", "deployment", "sandbox"],
+    "category": "container-management",
+    "license": "MIT",
+    "documentation": "https://docs.skills-architecture.com/skills/docker-manager",
+    "repository": "https://github.com/skills-architecture/devops-skills",
+    "performance": {
+      "averageExecutionTime": 15000,
+      "memoryUsage": "medium",
+      "cpuIntensive": true,
+      "networkDependent": true
+    },
+    "security": {
+      "requiresPrivileges": false,
+      "sandboxCompatible": true,
+      "auditLog": true
+    }
+  }
+}
