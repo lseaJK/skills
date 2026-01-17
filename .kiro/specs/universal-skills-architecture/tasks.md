@@ -1,6 +1,11 @@
 # 实施计划
 
 - [ ] 1. 建立项目结构和核心接口
+
+
+
+
+
   - 创建TypeScript项目结构，包含核心模块、VS Code扩展和测试目录
   - 定义所有核心接口和类型定义（SkillDefinition, SkillRegistry, ExecutionEngine等）
   - 设置测试框架（Jest）和属性测试库（fast-check）
@@ -11,7 +16,10 @@
   - **属性 1: 技能定义模板一致性**
   - **验证: 需求 1.1**
 
-- [ ] 2. 实现技能定义引擎
+- [x] 2. 实现技能定义引擎
+
+
+
   - 创建SkillDefinition数据模型和验证逻辑
   - 实现InvocationSpecification和ExtensionPoint接口
   - 编写技能定义的JSON Schema验证器
