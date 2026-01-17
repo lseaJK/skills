@@ -1,0 +1,80 @@
+{
+  "id": "sample-file-reader",
+  "name": "File Reader",
+  "version": "1.0.0",
+  "layer": 1,
+  "description": "A basic skill for reading file contents",
+  "invocationSpec": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "filePath": {
+          "type": "string",
+          "description": "Path to the file to read"
+        },
+        "encoding": {
+          "type": "string",
+          "enum": ["utf8", "ascii", "base64"],
+          "default": "utf8"
+        }
+      },
+      "required": ["filePath"]
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string",
+          "description": "File content"
+        },
+        "size": {
+          "type": "number",
+          "description": "File size in bytes"
+        }
+      }
+    },
+    "executionContext": {
+      "environment": {},
+      "security": {
+        "sandboxed": true
+      }
+    },
+    "parameters": [
+      {
+        "name": "filePath",
+        "type": "string",
+        "description": "Path to the file to read",
+        "required": true
+      },
+      {
+        "name": "encoding",
+        "type": "string",
+        "description": "File encoding",
+        "required": false
+      }
+    ],
+    "examples": [
+      {
+        "name": "Read text file",
+        "description": "Read a simple text file",
+        "input": {
+          "filePath": "./README.md",
+          "encoding": "utf8"
+        },
+        "expectedOutput": {
+          "content": "# Sample README content",
+          "size": 1024
+        }
+      }
+    ]
+  },
+  "extensionPoints": [],
+  "dependencies": [],
+  "metadata": {
+    "author": "Skills Architecture Team",
+    "created": "2024-01-17T00:00:00Z",
+    "updated": "2024-01-17T00:00:00Z",
+    "tags": ["file", "io", "utility"],
+    "category": "file-operations"
+  }
+}

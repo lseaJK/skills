@@ -1,13 +1,15 @@
 import * as vscode from 'vscode';
 import { ConfigurationManager } from '../managers/configurationManager';
+import { InMemorySkillRegistry } from '../core/skillRegistry';
 /**
  * Custom editor provider for skill files
  */
 export declare class SkillEditorProvider implements vscode.CustomTextEditorProvider {
     private context;
     private configManager;
+    private skillRegistry;
     private static readonly viewType;
-    constructor(context: vscode.ExtensionContext, configManager: ConfigurationManager);
+    constructor(context: vscode.ExtensionContext, configManager: ConfigurationManager, skillRegistry: InMemorySkillRegistry);
     /**
      * Initialize the skill editor provider
      */
@@ -29,7 +31,7 @@ export declare class SkillEditorProvider implements vscode.CustomTextEditorProvi
      */
     private updateWebview;
     /**
-     * Validate skill
+     * Validate skill using the skill registry
      */
     private validateSkill;
     /**
@@ -45,12 +47,24 @@ export declare class SkillEditorProvider implements vscode.CustomTextEditorProvi
      */
     private updateDocument;
     /**
-     * Generate nonce for CSP
+     * Test skill execution
      */
-    private getNonce;
+    private testSkill;
+    /**
+     * Get auto-completion suggestions
+     */
+    private getAutoComplete;
+    /**
+     * Register skill to the registry
+     */
+    private registerSkill;
     /**
      * Get view type
      */
     static getViewType(): string;
+    /**
+     * Generate nonce for CSP
+     */
+    private getNonce;
 }
 //# sourceMappingURL=skillEditorProvider.d.ts.map

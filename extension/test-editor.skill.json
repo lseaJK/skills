@@ -1,0 +1,63 @@
+{
+  "id": "test-editor-skill",
+  "name": "Test Editor Skill",
+  "version": "1.0.0",
+  "layer": 2,
+  "description": "A skill to test the visual editor functionality",
+  "invocationSpec": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Message to process"
+        }
+      },
+      "required": ["message"]
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "type": "string",
+          "description": "Processed message"
+        }
+      }
+    },
+    "executionContext": {
+      "environment": {},
+      "security": {
+        "sandboxed": true
+      }
+    },
+    "parameters": [
+      {
+        "name": "message",
+        "type": "string",
+        "description": "Input message to process",
+        "required": true
+      }
+    ],
+    "examples": [
+      {
+        "name": "Simple message",
+        "description": "Process a simple text message",
+        "input": {
+          "message": "Hello World"
+        },
+        "expectedOutput": {
+          "result": "Processed: Hello World"
+        }
+      }
+    ]
+  },
+  "extensionPoints": [],
+  "dependencies": [],
+  "metadata": {
+    "author": "Test User",
+    "created": "2024-01-17T00:00:00Z",
+    "updated": "2024-01-17T00:00:00Z",
+    "tags": ["test", "editor"],
+    "category": "testing"
+  }
+}

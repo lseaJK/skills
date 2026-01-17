@@ -40,6 +40,7 @@ const skillEditorProvider_1 = require("./providers/skillEditorProvider");
 const configurationManager_1 = require("./managers/configurationManager");
 const commandManager_1 = require("./managers/commandManager");
 const eventManager_1 = require("./managers/eventManager");
+const skillRegistry_1 = require("./core/skillRegistry");
 /**
  * Main extension class that coordinates all components
  */
@@ -51,9 +52,10 @@ class SkillsArchitectureExtension {
         this.configurationManager = new configurationManager_1.ConfigurationManager(context);
         this.commandManager = new commandManager_1.CommandManager(context);
         this.eventManager = new eventManager_1.EventManager(context);
+        this.skillRegistry = new skillRegistry_1.InMemorySkillRegistry();
         // Initialize providers
         this.skillsTreeProvider = new skillsTreeDataProvider_1.SkillsTreeDataProvider(context, this.configurationManager);
-        this.skillEditorProvider = new skillEditorProvider_1.SkillEditorProvider(context, this.configurationManager);
+        this.skillEditorProvider = new skillEditorProvider_1.SkillEditorProvider(context, this.configurationManager, this.skillRegistry);
         // Create tree view
         this.treeView = vscode.window.createTreeView('skillsExplorer', {
             treeDataProvider: this.skillsTreeProvider,
@@ -155,6 +157,12 @@ class SkillsArchitectureExtension {
         });
         // Mark as no longer first time
         this.configurationManager.setFirstTime(false);
+    }
+    /**
+     * Get the skill registry
+     */
+    getSkillRegistry() {
+        return this.skillRegistry;
     }
     /**
      * Get the configuration manager

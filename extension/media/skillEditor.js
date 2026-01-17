@@ -22,7 +22,9 @@
         addParameterBtn: document.getElementById('addParameterBtn'),
         addExampleBtn: document.getElementById('addExampleBtn'),
         validateBtn: document.getElementById('validateBtn'),
+        testBtn: document.getElementById('testBtn'),
         previewBtn: document.getElementById('previewBtn'),
+        registerBtn: document.getElementById('registerBtn'),
         saveBtn: document.getElementById('saveBtn'),
         statusMessage: document.getElementById('statusMessage'),
         validationResults: document.getElementById('validationResults')
@@ -49,10 +51,18 @@
 
         // Button clicks
         elements.validateBtn.addEventListener('click', validateSkill);
+        elements.testBtn.addEventListener('click', testSkill);
         elements.previewBtn.addEventListener('click', previewSkill);
+        elements.registerBtn.addEventListener('click', registerSkill);
         elements.saveBtn.addEventListener('click', saveSkill);
         elements.addParameterBtn.addEventListener('click', addParameter);
         elements.addExampleBtn.addEventListener('click', addExample);
+
+        // Auto-completion for specific fields
+        setupAutoCompletion();
+
+        // Syntax highlighting for JSON fields
+        setupSyntaxHighlighting();
 
         // Listen for messages from VS Code
         window.addEventListener('message', handleMessage);
@@ -71,6 +81,15 @@
                 break;
             case 'previewResult':
                 showPreviewResults(message.result);
+                break;
+            case 'testResult':
+                showTestResults(message.result);
+                break;
+            case 'registerResult':
+                showRegisterResults(message.result);
+                break;
+            case 'autoCompleteResult':
+                showAutoCompleteResults(message.suggestions);
                 break;
             case 'error':
                 setStatus(message.message, 'error');
@@ -370,6 +389,16 @@
         });
     }
 
+    // Test skill
+    function testSkill() {
+        const skill = collectSkillData();
+        setStatus('Testing skill execution...');
+        vscode.postMessage({
+            type: 'test',
+            skill: skill
+        });
+    }
+
     // Preview skill
     function previewSkill() {
         const skill = collectSkillData();
@@ -377,6 +406,79 @@
         vscode.postMessage({
             type: 'preview',
             skill: skill
+        });
+    }
+
+    // Register skill
+    function registerSkill() {
+        const skill = collectSkillData();
+        setStatus('Registering skill...');
+        vscode.postMessage({
+            type: 'registerSkill',
+            skill: skill
+        });
+    }
+
+    // Setup auto-completion
+    function setupAutoCompletion() {
+        // Category field auto-completion
+        elements.skillCategory.addEventListener('input', function(e) {
+            requestAutoComplete('category', e.target.value);
+        });
+
+        // Tags field auto-completion
+        elements.skillTags.addEventListener('input', function(e) {
+            requestAutoComplete('tags', e.target.value);
+        });
+    }
+
+    // Setup syntax highlighting for JSON fields
+    function setupSyntaxHighlighting() {
+        const jsonFields = [elements.inputSchema, elements.outputSchema];
+        
+        jsonFields.forEach(field => {
+            field.addEventListener('input', function(e) {
+                validateAndHighlightJSON(e.target);
+            });
+            
+            field.addEventListener('blur', function(e) {
+                formatJSON(e.target);
+            });
+        });
+    }
+
+    // Validate and highlight JSON
+    function validateAndHighlightJSON(element) {
+        try {
+            JSON.parse(element.value);
+            element.classList.remove('json-error');
+            element.classList.add('json-valid');
+        } catch (error) {
+            element.classList.remove('json-valid');
+            element.classList.add('json-error');
+        }
+    }
+
+    // Format JSON
+    function formatJSON(element) {
+        try {
+            const parsed = JSON.parse(element.value);
+            element.value = JSON.stringify(parsed, null, 2);
+            element.classList.remove('json-error');
+            element.classList.add('json-valid');
+        } catch (error) {
+            // Keep original value if invalid
+        }
+    }
+
+    // Request auto-completion
+    function requestAutoComplete(field, query) {
+        vscode.postMessage({
+            type: 'getAutoComplete',
+            context: {
+                field: field,
+                query: query
+            }
         });
     }
 
@@ -427,14 +529,50 @@
         elements.validationResults.innerHTML = html;
     }
 
-    // Show preview results
-    function showPreviewResults(result) {
+    // Show test results
+    function showTestResults(result) {
         if (result.success) {
-            setStatus(`Preview completed in ${result.duration?.toFixed(0)}ms`);
-            console.log('Preview result:', result.output);
+            setStatus(`Test completed in ${result.duration?.toFixed(0)}ms`);
+            
+            let html = '<div class="test-results">';
+            html += '<h3>Test Results</h3>';
+            
+            if (result.testResults) {
+                result.testResults.forEach(test => {
+                    const status = test.success ? '✓' : '✗';
+                    const statusClass = test.success ? 'test-success' : 'test-failure';
+                    html += `<div class="test-result ${statusClass}">`;
+                    html += `<span class="test-status">${status}</span>`;
+                    html += `<span class="test-name">${test.exampleName}</span>`;
+                    html += `<span class="test-message">${test.message}</span>`;
+                    html += '</div>';
+                });
+            }
+            
+            html += '</div>';
+            elements.validationResults.innerHTML = html;
         } else {
-            setStatus(`Preview failed: ${result.error}`, 'error');
+            setStatus(`Test failed: ${result.error}`, 'error');
+            elements.validationResults.innerHTML = `<span class="validation-error">Test failed: ${result.error}</span>`;
         }
+    }
+
+    // Show register results
+    function showRegisterResults(result) {
+        if (result.success) {
+            setStatus(result.message);
+            elements.validationResults.innerHTML = `<span class="validation-success">✓ ${result.message}</span>`;
+        } else {
+            setStatus(`Registration failed: ${result.error}`, 'error');
+            elements.validationResults.innerHTML = `<span class="validation-error">Registration failed: ${result.error}</span>`;
+        }
+    }
+
+    // Show auto-complete results
+    function showAutoCompleteResults(suggestions) {
+        // This would typically show a dropdown, but for now we'll log it
+        console.log('Auto-complete suggestions:', suggestions);
+        // In a full implementation, you'd show a dropdown with these suggestions
     }
 
     // Set status message
@@ -460,3 +598,12 @@
         init();
     }
 })();
+    // Show preview results
+    function showPreviewResults(result) {
+        if (result.success) {
+            setStatus(`Preview completed in ${result.duration?.toFixed(0)}ms`);
+            console.log('Preview result:', result.output);
+        } else {
+            setStatus(`Preview failed: ${result.error}`, 'error');
+        }
+    }

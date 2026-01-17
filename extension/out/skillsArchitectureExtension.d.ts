@@ -4,6 +4,7 @@ import { SkillEditorProvider } from './providers/skillEditorProvider';
 import { ConfigurationManager } from './managers/configurationManager';
 import { CommandManager } from './managers/commandManager';
 import { EventManager } from './managers/eventManager';
+import { InMemorySkillRegistry } from './core/skillRegistry';
 /**
  * Main extension class that coordinates all components
  */
@@ -12,6 +13,7 @@ export declare class SkillsArchitectureExtension {
     private configurationManager;
     private commandManager;
     private eventManager;
+    private skillRegistry;
     private skillsTreeProvider;
     private skillEditorProvider;
     private treeView;
@@ -33,6 +35,10 @@ export declare class SkillsArchitectureExtension {
      * Show welcome message for first-time users
      */
     private showWelcomeMessage;
+    /**
+     * Get the skill registry
+     */
+    getSkillRegistry(): InMemorySkillRegistry;
     /**
      * Get the configuration manager
      */

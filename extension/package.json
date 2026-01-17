@@ -259,7 +259,19 @@
           "description": "Enable debug mode for detailed logging"
         }
       }
-    }
+    },
+    "customEditors": [
+      {
+        "viewType": "skillsArchitecture.skillEditor",
+        "displayName": "Skill Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.skill.json"
+          }
+        ],
+        "priority": "default"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

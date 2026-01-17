@@ -4,6 +4,7 @@ import { SkillEditorProvider } from './providers/skillEditorProvider';
 import { ConfigurationManager } from './managers/configurationManager';
 import { CommandManager } from './managers/commandManager';
 import { EventManager } from './managers/eventManager';
+import { InMemorySkillRegistry } from './core/skillRegistry';
 
 /**
  * Main extension class that coordinates all components
@@ -12,6 +13,7 @@ export class SkillsArchitectureExtension {
     private configurationManager: ConfigurationManager;
     private commandManager: CommandManager;
     private eventManager: EventManager;
+    private skillRegistry: InMemorySkillRegistry;
     private skillsTreeProvider: SkillsTreeDataProvider;
     private skillEditorProvider: SkillEditorProvider;
     private treeView: vscode.TreeView<any>;
@@ -22,10 +24,11 @@ export class SkillsArchitectureExtension {
         this.configurationManager = new ConfigurationManager(context);
         this.commandManager = new CommandManager(context);
         this.eventManager = new EventManager(context);
+        this.skillRegistry = new InMemorySkillRegistry();
         
         // Initialize providers
         this.skillsTreeProvider = new SkillsTreeDataProvider(context, this.configurationManager);
-        this.skillEditorProvider = new SkillEditorProvider(context, this.configurationManager);
+        this.skillEditorProvider = new SkillEditorProvider(context, this.configurationManager, this.skillRegistry);
         
         // Create tree view
         this.treeView = vscode.window.createTreeView('skillsExplorer', {
@@ -167,6 +170,13 @@ export class SkillsArchitectureExtension {
 
         // Mark as no longer first time
         this.configurationManager.setFirstTime(false);
+    }
+
+    /**
+     * Get the skill registry
+     */
+    getSkillRegistry(): InMemorySkillRegistry {
+        return this.skillRegistry;
     }
 
     /**
