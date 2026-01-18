@@ -124,6 +124,15 @@ export class ValidationEngine {
       });
     }
 
+    if (!skill.description) {
+      errors.push({
+        code: 'MISSING_REQUIRED_FIELD',
+        message: 'Skill description is required',
+        path: 'description',
+        severity: ValidationSeverity.ERROR
+      });
+    }
+
     // Layer validation
     if (![1, 2, 3].includes(skill.layer)) {
       errors.push({
@@ -142,6 +151,16 @@ export class ValidationEngine {
         message: 'Version should follow semantic versioning (e.g., 1.0.0)',
         path: 'version',
         suggestions: ['Use semantic versioning format: MAJOR.MINOR.PATCH']
+      });
+    }
+
+    // Metadata validation
+    if (!skill.metadata?.author) {
+      errors.push({
+        code: 'MISSING_REQUIRED_FIELD',
+        message: 'Skill metadata author is required',
+        path: 'metadata.author',
+        severity: ValidationSeverity.ERROR
       });
     }
 

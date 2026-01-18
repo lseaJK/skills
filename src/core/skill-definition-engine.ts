@@ -53,7 +53,7 @@ export class SkillDefinitionEngine {
         },
         name: {
           type: 'string',
-          minLength: 0, // Allow empty for templates
+          minLength: 1, // Require non-empty names for consistency
           maxLength: 200
         },
         version: {
@@ -66,7 +66,7 @@ export class SkillDefinitionEngine {
         },
         description: {
           type: 'string',
-          minLength: 0, // Allow empty for templates
+          minLength: 1, // Require non-empty descriptions for consistency
           maxLength: 1000
         },
         invocationSpec: {
@@ -168,7 +168,7 @@ export class SkillDefinitionEngine {
           type: 'object',
           required: ['author', 'created', 'updated', 'tags', 'category'],
           properties: {
-            author: { type: 'string', minLength: 0 }, // Allow empty for templates
+            author: { type: 'string', minLength: 1 }, // Require non-empty author for consistency
             created: {}, // Accept any type for created date
             updated: {}, // Accept any type for updated date
             tags: { type: 'array', items: { type: 'string', minLength: 1 } },

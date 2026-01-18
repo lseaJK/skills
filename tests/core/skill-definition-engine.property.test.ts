@@ -1,5 +1,8 @@
 import { SkillDefinitionEngine, SkillTemplateOptions } from '../../src/core/skill-definition-engine';
 import { SkillDefinition, SkillDependencyType } from '../../src/types';
+import { ValidationEngine } from '../../src/core/validation-engine';
+import { ExtensionManager } from '../../src/extensions/extension-manager';
+import { MigrationManager } from '../../src/migration/migration-manager';
 import * as fc from 'fast-check';
 
 /**
@@ -267,7 +270,495 @@ describe('SkillDefinitionEngine Property Tests', () => {
       );
     });
   });
+
+  describe('Property 3: Universal Validation Consistency', () => {
+    /**
+     * **Feature: universal-skills-architecture, Property 3: 通用验证一致性**
+     * **Validates: Requirements 1.3, 4.2, 6.3**
+     * 
+     * Property: For any skill definition, import configuration, or extension registration,
+     * the system should execute appropriate validation and correctly accept valid inputs
+     * while rejecting invalid inputs
+     */
+    it('should consistently validate skill definitions with same validation rules', () => {
+      fc.assert(
+        fc.property(
+          // Generate skill definitions with various validity levels
+          fc.record({
+            layer: fc.constantFrom(1 as const, 2 as const, 3 as const),
+            hasValidId: fc.boolean(),
+            hasValidName: fc.boolean(),
+            hasValidVersion: fc.boolean(),
+            hasValidDescription: fc.boolean(),
+            hasValidInvocationSpec: fc.boolean(),
+            hasValidExtensionPoints: fc.boolean(),
+            hasValidDependencies: fc.boolean(),
+            hasValidMetadata: fc.boolean()
+          }),
+          (config) => {
+            // Create skill definition based on configuration
+            const skillDefinition = createSkillDefinitionFromConfig(config);
+            
+            // Validate using skill definition engine
+            const engineValidation = engine.validateSkillDefinition(skillDefinition);
+            
+            // Validate using validation engine
+            const validationEngine = new (require('../../src/core/validation-engine').ValidationEngine)();
+            const validationEngineResult = validationEngine.validateSkillDefinition(skillDefinition);
+            
+            // Both validation results should be consistent
+            expect(engineValidation.valid).toBe(validationEngineResult.valid);
+            
+            // If invalid, both should have errors
+            if (!engineValidation.valid) {
+              expect(engineValidation.errors.length).toBeGreaterThan(0);
+              expect(validationEngineResult.errors.length).toBeGreaterThan(0);
+            }
+            
+            // If valid, both should have no errors
+            if (engineValidation.valid) {
+              expect(engineValidation.errors.length).toBe(0);
+              expect(validationEngineResult.errors.length).toBe(0);
+            }
+            
+            // Validation should be deterministic - same input should give same result
+            const secondEngineValidation = engine.validateSkillDefinition(skillDefinition);
+            const secondValidationEngineResult = validationEngine.validateSkillDefinition(skillDefinition);
+            
+            expect(engineValidation.valid).toBe(secondEngineValidation.valid);
+            expect(validationEngineResult.valid).toBe(secondValidationEngineResult.valid);
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    /**
+     * **Feature: universal-skills-architecture, Property 3: 通用验证一致性**
+     * **Validates: Requirements 1.3, 4.2, 6.3**
+     * 
+     * Property: For any extension registration, the system should apply consistent
+     * validation rules and correctly accept valid extensions while rejecting invalid ones
+     */
+    it('should consistently validate extension registrations', () => {
+      fc.assert(
+        fc.property(
+          // Generate extension configurations with various validity levels
+          fc.record({
+            hasValidId: fc.boolean(),
+            hasValidBaseSkillId: fc.boolean(),
+            hasValidName: fc.boolean(),
+            hasValidVersion: fc.boolean(),
+            hasValidType: fc.boolean(),
+            hasValidPriority: fc.boolean(),
+            hasValidImplementation: fc.boolean(),
+            hasValidDependencies: fc.boolean()
+          }),
+          (config) => {
+            // Create extension from configuration
+            const extension = createExtensionFromConfig(config);
+            
+            // Create extension manager
+            const extensionManager = new ExtensionManager();
+            
+            // Validate extension
+            const validation = extensionManager.validateExtension(extension);
+            
+            // Check validation consistency
+            const expectedValid = config.hasValidId && 
+                                config.hasValidBaseSkillId && 
+                                config.hasValidName && 
+                                config.hasValidVersion && 
+                                config.hasValidType && 
+                                config.hasValidPriority && 
+                                config.hasValidImplementation &&
+                                config.hasValidDependencies;
+            
+            // Validation result should match expected validity
+            expect(validation.valid).toBe(expectedValid);
+            
+            // If invalid, should have specific error messages
+            if (!expectedValid) {
+              expect(validation.errors.length).toBeGreaterThan(0);
+              
+              // Check for specific error codes based on missing fields
+              if (!config.hasValidId) {
+                expect(validation.errors.some((e: any) => e.code === 'MISSING_ID')).toBe(true);
+              }
+              if (!config.hasValidBaseSkillId) {
+                expect(validation.errors.some((e: any) => e.code === 'MISSING_BASE_SKILL_ID')).toBe(true);
+              }
+              if (!config.hasValidName) {
+                expect(validation.errors.some((e: any) => e.code === 'MISSING_NAME')).toBe(true);
+              }
+              if (!config.hasValidVersion) {
+                expect(validation.errors.some((e: any) => e.code === 'MISSING_VERSION')).toBe(true);
+              }
+              if (!config.hasValidType) {
+                expect(validation.errors.some((e: any) => e.code === 'INVALID_TYPE')).toBe(true);
+              }
+              if (!config.hasValidPriority) {
+                expect(validation.errors.some((e: any) => e.code === 'INVALID_PRIORITY')).toBe(true);
+              }
+              if (!config.hasValidImplementation) {
+                expect(validation.errors.some((e: any) => e.code === 'MISSING_IMPLEMENTATION')).toBe(true);
+              }
+            }
+            
+            // If valid, should have no errors
+            if (expectedValid) {
+              expect(validation.errors.length).toBe(0);
+            }
+            
+            // Validation should be deterministic
+            const secondValidation = extensionManager.validateExtension(extension);
+            expect(validation.valid).toBe(secondValidation.valid);
+            expect(validation.errors.length).toBe(secondValidation.errors.length);
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    /**
+     * **Feature: universal-skills-architecture, Property 3: 通用验证一致性**
+     * **Validates: Requirements 1.3, 4.2, 6.3**
+     * 
+     * Property: For any import configuration, the system should apply consistent
+     * validation and compatibility checking rules
+     */
+    it('should consistently validate import configurations and compatibility', async () => {
+      // Test a few specific cases instead of using property-based testing for async operations
+      const testCases = [
+        {
+          hasValidPackageStructure: true,
+          hasValidSkills: true,
+          hasValidDependencies: true,
+          hasCompatiblePlatform: true,
+          hasCompatibleRuntime: true,
+          hasRequiredCapabilities: true
+        },
+        {
+          hasValidPackageStructure: false,
+          hasValidSkills: false,
+          hasValidDependencies: false,
+          hasCompatiblePlatform: false,
+          hasCompatibleRuntime: false,
+          hasRequiredCapabilities: false
+        }
+      ];
+
+      for (const config of testCases) {
+        // Create skill package and environment from configuration
+        const { skillPackage, environment } = createPackageAndEnvironmentFromConfig(config);
+        
+        // Create migration manager
+        const migrationManager = new MigrationManager();
+        
+        // Validate compatibility
+        const compatibilityReport = await migrationManager.validateCompatibility(skillPackage, environment);
+        
+        // Check validation consistency - the report should always be generated
+        expect(compatibilityReport).toBeDefined();
+        expect(compatibilityReport.issues).toBeDefined();
+        expect(Array.isArray(compatibilityReport.issues)).toBe(true);
+        expect(compatibilityReport.recommendations).toBeDefined();
+        expect(Array.isArray(compatibilityReport.recommendations)).toBe(true);
+        expect(compatibilityReport.adaptations).toBeDefined();
+        expect(Array.isArray(compatibilityReport.adaptations)).toBe(true);
+        
+        // Validation should be deterministic
+        const secondCompatibilityReport = await migrationManager.validateCompatibility(skillPackage, environment);
+        expect(compatibilityReport.compatible).toBe(secondCompatibilityReport.compatible);
+        expect(compatibilityReport.issues.length).toBe(secondCompatibilityReport.issues.length);
+      }
+    });
+
+    /**
+     * **Feature: universal-skills-architecture, Property 3: 通用验证一致性**
+     * **Validates: Requirements 1.3, 4.2, 6.3**
+     * 
+     * Property: For any data validation against JSON schemas, the system should
+     * consistently apply the same validation rules
+     */
+    it('should consistently validate data against JSON schemas', () => {
+      fc.assert(
+        fc.property(
+          // Generate schema and data combinations
+          fc.record({
+            schemaType: fc.constantFrom('object', 'string', 'number', 'boolean', 'array'),
+            dataMatchesSchema: fc.boolean(),
+            hasRequiredFields: fc.boolean(),
+            hasCorrectTypes: fc.boolean()
+          }),
+          (config) => {
+            // Create schema and data from configuration
+            const { schema, data } = createSchemaAndDataFromConfig(config);
+            
+            // Create validation engine
+            const ValidationEngine = require('../../src/core/validation-engine').ValidationEngine;
+            const validationEngine = new ValidationEngine();
+            
+            // Validate data against schema
+            const validation = validationEngine.validateData(data, schema);
+            
+            // Check validation consistency
+            const expectedValid = config.dataMatchesSchema && config.hasCorrectTypes && 
+                                (config.schemaType !== 'object' || config.hasRequiredFields);
+            
+            // Validation result should match expected validity
+            expect(validation.valid).toBe(expectedValid);
+            
+            // If invalid, should have errors
+            if (!expectedValid) {
+              expect(validation.errors.length).toBeGreaterThan(0);
+            }
+            
+            // If valid, should have no errors
+            if (expectedValid) {
+              expect(validation.errors.length).toBe(0);
+            }
+            
+            // Validation should be deterministic
+            const secondValidation = validationEngine.validateData(data, schema);
+            expect(validation.valid).toBe(secondValidation.valid);
+            expect(validation.errors.length).toBe(secondValidation.errors.length);
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+  });
 });
+
+/**
+ * Helper function to create skill definition from configuration for testing
+ */
+function createSkillDefinitionFromConfig(config: any): SkillDefinition {
+  const now = new Date();
+  
+  return {
+    id: config.hasValidId ? `skill_${Math.random().toString(36).substr(2, 9)}` : '',
+    name: config.hasValidName ? `Test Skill ${Math.random()}` : '',
+    version: config.hasValidVersion ? '1.0.0' : '',
+    layer: config.layer,
+    description: config.hasValidDescription ? 'Test skill description' : '',
+    invocationSpec: config.hasValidInvocationSpec ? {
+      inputSchema: { type: 'object', properties: {}, required: [] },
+      outputSchema: { type: 'object', properties: { result: { type: 'string' } }, required: ['result'] },
+      executionContext: {
+        environment: {},
+        timeout: 30000,
+        resources: {
+          maxMemory: 512 * 1024 * 1024,
+          maxCpu: 5000,
+          maxDuration: 30000,
+          maxFileSize: 10 * 1024 * 1024
+        },
+        security: {
+          sandboxed: config.layer !== 1,
+          allowedPaths: [],
+          allowedNetworkHosts: [],
+          allowedCommands: []
+        }
+      },
+      parameters: [],
+      examples: []
+    } : {} as any,
+    extensionPoints: config.hasValidExtensionPoints ? [
+      {
+        id: 'test-extension',
+        name: 'Test Extension Point',
+        description: 'Test extension point',
+        type: 'hook' as any,
+        interface: { type: 'object' },
+        required: false
+      }
+    ] : [] as any,
+    dependencies: config.hasValidDependencies ? [] : [
+      // Invalid dependency missing required fields
+      { id: '', name: '', version: '', type: 'skill' as any, optional: false }
+    ],
+    metadata: config.hasValidMetadata ? {
+      author: 'Test Author',
+      created: now,
+      updated: now,
+      tags: ['test'],
+      category: 'test-category'
+    } : {
+      author: '', // Invalid empty author
+      created: now,
+      updated: now,
+      tags: ['test'],
+      category: 'test-category'
+    } as any
+  };
+}
+
+/**
+ * Helper function to create extension from configuration for testing
+ */
+function createExtensionFromConfig(config: any): any {
+  const { ExtensionType } = require('../../src/types');
+  
+  return {
+    id: config.hasValidId ? `ext_${Math.random().toString(36).substr(2, 9)}` : '',
+    baseSkillId: config.hasValidBaseSkillId ? `skill_${Math.random().toString(36).substr(2, 9)}` : '',
+    name: config.hasValidName ? `Test Extension ${Math.random()}` : '',
+    version: config.hasValidVersion ? '1.0.0' : '',
+    type: config.hasValidType ? ExtensionType.HOOK : 'invalid-type',
+    priority: config.hasValidPriority ? Math.floor(Math.random() * 100) : 'invalid-priority',
+    implementation: config.hasValidImplementation ? { code: 'test implementation' } : null,
+    dependencies: config.hasValidDependencies ? [] : ['invalid-dependency-format']
+  };
+}
+
+/**
+ * Helper function to create skill package and environment from configuration for testing
+ */
+function createPackageAndEnvironmentFromConfig(config: any): { skillPackage: any, environment: any } {
+  const now = new Date();
+  
+  const skillPackage = {
+    id: config.hasValidPackageStructure ? `package_${Date.now()}` : '',
+    name: config.hasValidPackageStructure ? 'Test Package' : '',
+    version: config.hasValidPackageStructure ? '1.0.0' : '',
+    skills: config.hasValidSkills ? [
+      {
+        id: 'test-skill',
+        name: 'Test Skill',
+        version: '1.0.0',
+        layer: 1,
+        description: 'Test skill',
+        invocationSpec: {
+          inputSchema: { type: 'object', properties: {}, required: [] },
+          outputSchema: { type: 'object', properties: { result: { type: 'string' } }, required: ['result'] },
+          executionContext: {
+            environment: {},
+            timeout: 30000,
+            resources: { maxMemory: 512 * 1024 * 1024, maxCpu: 5000, maxDuration: 30000, maxFileSize: 10 * 1024 * 1024 },
+            security: { sandboxed: false, allowedPaths: [], allowedNetworkHosts: [], allowedCommands: [] }
+          },
+          parameters: [],
+          examples: []
+        },
+        extensionPoints: [],
+        dependencies: [],
+        metadata: {
+          author: 'Test',
+          created: now,
+          updated: now,
+          tags: [],
+          category: 'test'
+        }
+      }
+    ] : [
+      // Invalid skill missing required fields
+      { id: '', name: '', version: '', layer: 0 } as any
+    ],
+    dependencies: config.hasValidDependencies ? [] : [
+      // Invalid dependency
+      { name: '', version: '', type: 'invalid' } as any
+    ],
+    configuration: {
+      skillsPath: './skills',
+      enabledLayers: [1, 2, 3],
+      environmentVariables: {},
+      dependencies: [],
+      migrationSettings: {
+        autoResolveConflicts: false,
+        backupBeforeMigration: true,
+        validateAfterMigration: true,
+        migrationStrategy: 'CONSERVATIVE' as any
+      }
+    },
+    metadata: {
+      author: 'Test',
+      description: 'Test package',
+      created: now,
+      exported: now,
+      sourceEnvironment: {
+        platform: config.hasCompatiblePlatform ? 'linux' : 'different-platform',
+        runtime: config.hasCompatibleRuntime ? 'node' : 'different-runtime',
+        version: 'v16.0.0',
+        capabilities: config.hasRequiredCapabilities ? ['file-system', 'network', 'process-execution'] : ['limited-capability'],
+        constraints: [{ maxMemory: 1024 * 1024 * 1024, maxCpu: 10000, maxDuration: 300000, maxFileSize: 100 * 1024 * 1024 }]
+      },
+      tags: [],
+      license: 'MIT'
+    }
+  };
+  
+  const environment = {
+    platform: 'linux',
+    runtime: 'node',
+    version: 'v16.0.0',
+    capabilities: ['file-system', 'network', 'process-execution'],
+    constraints: [{ maxMemory: 1024 * 1024 * 1024, maxCpu: 10000, maxDuration: 300000, maxFileSize: 100 * 1024 * 1024 }]
+  };
+  
+  return { skillPackage, environment };
+}
+
+/**
+ * Helper function to create schema and data from configuration for testing
+ */
+function createSchemaAndDataFromConfig(config: any): { schema: any, data: any } {
+  let schema: any;
+  let data: any;
+  
+  switch (config.schemaType) {
+    case 'object':
+      schema = {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          age: { type: 'number' }
+        },
+        required: config.hasRequiredFields ? ['name'] : ['name', 'missing'],
+        additionalProperties: config.dataMatchesSchema // Only allow additional properties if data should match
+      };
+      
+      if (config.dataMatchesSchema && config.hasRequiredFields && config.hasCorrectTypes) {
+        data = { name: 'Test', age: 25 };
+      } else if (!config.hasRequiredFields) {
+        data = { age: 25 }; // Missing required 'name' field
+      } else if (!config.hasCorrectTypes) {
+        data = { name: 123, age: 'invalid' }; // Wrong types
+      } else if (!config.dataMatchesSchema) {
+        data = { name: 'Test', age: 25, extraField: 'not allowed' }; // Extra field when additionalProperties=false
+      } else {
+        data = { name: 'Test' }; // Valid but incomplete
+      }
+      break;
+      
+    case 'string':
+      schema = { type: 'string', minLength: 1 };
+      data = config.dataMatchesSchema && config.hasCorrectTypes ? 'valid string' : 123;
+      break;
+      
+    case 'number':
+      schema = { type: 'number', minimum: 0 };
+      data = config.dataMatchesSchema && config.hasCorrectTypes ? 42 : 'not a number';
+      break;
+      
+    case 'boolean':
+      schema = { type: 'boolean' };
+      data = config.dataMatchesSchema && config.hasCorrectTypes ? true : 'not a boolean';
+      break;
+      
+    case 'array':
+      schema = { type: 'array', items: { type: 'string' } };
+      data = config.dataMatchesSchema && config.hasCorrectTypes ? ['item1', 'item2'] : [1, 2, 3];
+      break;
+      
+    default:
+      schema = { type: 'object' };
+      data = {};
+  }
+  
+  return { schema, data };
+}
 
 /**
  * Helper function to assert skill information completeness
